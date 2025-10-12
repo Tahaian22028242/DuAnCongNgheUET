@@ -13,7 +13,7 @@ import SupervisorTopics from './SupervisorTopics';
 import UploadHeads from './UploadHeads';
 import HeadTopics from './HeadTopics';
 import HeadStatistics from './HeadStatistics';
-import ChangePassword from './ChangePassword';
+import Settings from './Settings';
 import UploadLecturers from './UploadLecturers';
 import FacultiesInfo from './FacultiesInfo';
 import FacultyMembers from './FacultyMembers';
@@ -157,7 +157,7 @@ function App() {
                 path="/settings"
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
-                        <ChangePassword />
+                        <Settings />
                     </ProtectedRoute>
                 }
             />

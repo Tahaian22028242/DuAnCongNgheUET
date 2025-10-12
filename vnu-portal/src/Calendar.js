@@ -41,6 +41,7 @@ import {
   ChevronRight,
   MoreVert as MoreVertIcon
 } from '@mui/icons-material';
+import AppLayout from './AppLayout';
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -445,6 +446,7 @@ const Calendar = () => {
   };
 
   return (
+    <AppLayout>
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -762,6 +764,7 @@ const Calendar = () => {
         </DialogActions>
       </Dialog>
     </Box>
+    </AppLayout>
   );
 };
 

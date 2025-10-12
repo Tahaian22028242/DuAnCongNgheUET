@@ -16,10 +16,7 @@ const port = 5000;
 
 // Kết nối với MongoDB
 mongoose
-  .connect('mongodb://localhost:27017/uet_portal', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect('mongodb://localhost:27017/uet_portal')
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err));
 

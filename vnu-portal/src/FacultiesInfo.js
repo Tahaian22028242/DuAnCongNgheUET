@@ -190,6 +190,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import IconButton from '@mui/material/IconButton';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import AppLayout from './AppLayout';
 
 function FacultiesInfo() {
   const [faculties, setFaculties] = useState([]);
@@ -224,196 +225,39 @@ function FacultiesInfo() {
   };
 
   return (
-    <div className="dashboard">
-      {/* Nút nhỏ ở góc trái dưới cùng, luôn hiển thị */}
-      <Box
-        sx={{
-          position: 'fixed',
-          left: 0,
-          bottom: 24,
-          width: drawerWidth,
-          pointerEvents: 'none',
-          zIndex: 2000,
-        }}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'auto',
-          }}
-        >
-          <IconButton
-            onClick={() => setDrawerOpen(!drawerOpen)}
-            size="small"
-            sx={{
-              width: buttonWidth,
-              height: 36,
-              bgcolor: 'white',
-              border: '1px solid #e0e0e0',
-              boxShadow: 1,
-              transition: 'left 0.2s',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            {drawerOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-          </IconButton>
-        </Box>
-      </Box>
+    <AppLayout>
+      <div className="dashboard">
+        <div className="dashboard-content">
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h4" gutterBottom>
+              Chọn Khoa/Ngành để xem danh sách giảng viên & CNBM
+            </Typography>
 
-      <Drawer
-        variant="persistent"
-        anchor="left"
-        open={drawerOpen}
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-            transition: 'width 0.2s',
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
-          <img
-            src={logo}
-            alt="Logo"
-            style={{ width: '80px', height: '80px', objectFit: 'contain', cursor: 'pointer' }}
-            onClick={() => navigate('/dashboard')}
-          />
-        </Box>
-        <List sx={{ flexGrow: 1 }}>
-          <ListItem button onClick={() => navigate('/dashboard')}>
-            <DashboardIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Dashboard" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/profile')}>
-            <AccountCircleIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Account" />
-          </ListItem>
-          {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Chủ nhiệm bộ môn') && (
-            <ListItem button onClick={() => navigate('/batches')}>
-              <GroupIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Danh sách học viên" />
-            </ListItem>
-          )}
-          {user.role === 'Quản trị viên' && (
-            <>
-              <ListItem button onClick={() => navigate('/upload')}>
-                <UploadFileIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Tải lên danh sách" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/upload-heads')}>
-                <UploadFileIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Tải lên CNBM" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/upload-lecturers')}>
-                <UploadFileIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Tải lên danh sách giảng viên" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/topic-proposals')}>
-                <AssignmentIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Đề tài chưa được phê duyệt" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/faculties-info')}>
-                <InfoIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Thông tin" />
-              </ListItem>
-            </>
-          )}
-          {user.role === 'Sinh viên' && (
-            <>
-              <ListItem button onClick={() => navigate('/propose-topic')}>
-                <AssignmentIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Đề xuất đề cương" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/faculties-info')}>
-                <InfoIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Thông tin" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/notifications')}>
-                <InfoIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Thông báo" />
-              </ListItem>
-            </>
-          )}
-          {user.role === 'Giảng viên' && (
-            <ListItem button onClick={() => navigate('/topics')}>
-              <AssignmentIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Đề xuất từ học viên" />
-            </ListItem>
-          )}
-          {user.role === 'Chủ nhiệm bộ môn' && (
-            <ListItem button onClick={() => navigate('/head/topics')}>
-              <AssignmentIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Đề tài chờ phê duyệt" />
-            </ListItem>
-          )}
-          {user.role === 'Chủ nhiệm bộ môn' && (
-            <ListItem button onClick={() => navigate('/head/statistics')}>
-              <GroupIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Thống kê học viên" />
-            </ListItem>
-          )}
-          <ListItem button onClick={() => navigate('/calendar')}>
-            <CalendarMonthIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Calendar" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/settings')}>
-            <SettingsIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Setting" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/help')}>
-            <HelpIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Help" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/about')}>
-            <InfoIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Introduction" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/contact')}>
-            <ContactMailIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Contact" />
-          </ListItem>
-          <ListItem button onClick={handleLogout}>
-            <ExitToAppIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Logout" />
-          </ListItem>
-        </List>
-      </Drawer>
-
-      <div className="dashboard-content">
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h4" gutterBottom>
-            Chọn Khoa/Ngành để xem danh sách giảng viên & CNBM
-          </Typography>
-
-          {loading ? (
-            <CircularProgress />
-          ) : (
-            <Paper sx={{ p: 2 }}>
-              {faculties.length === 0 ? (
-                <Typography color="text.secondary">Chưa có dữ liệu Khoa/Ngành.</Typography>
-              ) : (
-                <List>
-                  {faculties.map((faculty) => (
-                    <ListItem
-                      button
-                      key={faculty}
-                      onClick={() => navigate(`/faculty/${encodeURIComponent(faculty)}`)}
-                    >
-                      <ListItemText primary={faculty} />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </Paper>
-          )}
-        </Box>
+            {loading ? (
+              <CircularProgress />
+            ) : (
+              <Paper sx={{ p: 2 }}>
+                {faculties.length === 0 ? (
+                  <Typography color="text.secondary">Chưa có dữ liệu Khoa/Ngành.</Typography>
+                ) : (
+                  <List>
+                    {faculties.map((faculty) => (
+                      <ListItem
+                        button
+                        key={faculty}
+                        onClick={() => navigate(`/faculty/${encodeURIComponent(faculty)}`)}
+                      >
+                        <ListItemText primary={faculty} />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Paper>
+            )}
+          </Box>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 
