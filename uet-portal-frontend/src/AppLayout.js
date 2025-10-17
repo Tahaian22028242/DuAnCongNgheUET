@@ -6,6 +6,8 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import HelpIcon from '@mui/icons-material/Help';
 import InfoIcon from '@mui/icons-material/Info';
+
+
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ContactMailIcon from '@mui/icons-material/ContactMail';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
@@ -153,6 +155,10 @@ const AppLayout = ({ children }) => {
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Đề tài chưa được phê duyệt" />}
                             </ListItem>
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Thông tin" />}
+                            </ListItem>
                         </>
                     )}
                     {user.role === 'Sinh viên' && (
@@ -164,6 +170,10 @@ const AppLayout = ({ children }) => {
                             <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin" />}
+                            </ListItem>
+                            <ListItem button onClick={() => navigate('/notifications')}>
+                                <InfoIcon sx={{ mr: 1 }} />
+                                <ListItemText primary="Thông báo" />
                             </ListItem>
                         </>
                     )}

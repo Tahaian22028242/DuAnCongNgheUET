@@ -1,42 +1,49 @@
 .dashboard {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background-color: #f0f2f5;
-  }
-  
-  .dashboard h1 {
-    font-size: 28px;
-    margin-bottom: 10px;
-  }
-  
-  .dashboard p {
-    font-size: 16px;
-    margin-bottom: 20px;
-  }
-  
-  .dashboard button {
-    padding: 10px 20px;
-    background-color: #ff4d4f;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  
-  .dashboard button:hover {
-    background-color: #d9363e;
-  }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f0f2f5;
+}
 
-  .dashboard-content {
-    flex: 1;
-    padding: 20px;
-    background-color: #f0f2f5;
-  }
-  
-  .MuiDrawer-paper {
-    width: 250px;
-  }
+.dashboard h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.dashboard p {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.dashboard button {
+  padding: 10px 20px;
+  background-color: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.dashboard button:hover {
+  background-color: #d9363e;
+}
+
+.dashboard-content {
+  flex: 1;
+  padding: 30px;
+  background-color: #f5f6fa;
+  /* màu nền nhạt */
+  min-height: calc(100vh - 64px);
+  /* trừ chiều cao AppBar nếu có */
+
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.MuiDrawer-paper {
+  width: 250px;
+}
