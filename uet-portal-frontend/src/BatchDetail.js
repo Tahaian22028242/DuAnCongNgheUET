@@ -43,6 +43,7 @@ function BatchDetail() {
         studentId: '',
         fullName: '',
         birthDate: '',
+        faculty: '',
         major: ''
     });
     const [filteredStudents, setFilteredStudents] = useState([]);
@@ -52,6 +53,8 @@ function BatchDetail() {
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user')) || {};
     const [originalStudentId, setOriginalStudentId] = useState('');
+
+    // const uniqueFaculties = Array.from(new Set(members.map(m => m.department).filter(Boolean))); // đang làm ở đây
 
     useEffect(() => {
         fetchBatchDetail();
@@ -88,20 +91,23 @@ function BatchDetail() {
 
     const handleFilterStudents = () => {
         let result = students;
-        if (searchFilters.studentId.trim()) {
+        if (searchFilters.studentId?.trim()) {
             result = result.filter(s => s.studentId?.toLowerCase().includes(searchFilters.studentId.trim().toLowerCase()));
         }
-        if (searchFilters.fullName.trim()) {
+        if (searchFilters.fullName?.trim()) {
             result = result.filter(s => s.fullName?.toLowerCase().includes(searchFilters.fullName.trim().toLowerCase()));
         }
-        if (searchFilters.birthDate.trim()) {
+        if (searchFilters.birthDate?.trim()) {
             result = result.filter(s => {
                 const date = new Date(s.birthDate);
                 const filterDate = new Date(searchFilters.birthDate);
                 return date.toDateString() === filterDate.toDateString();
             });
         }
-        if (searchFilters.major.trim()) {
+        if (searchFilters.faculty?.trim()) {
+            result = result.filter(s => s.faculty?.toLowerCase().includes(searchFilters.faculty.trim().toLowerCase()));
+        }
+        if (searchFilters.major?.trim()) {
             result = result.filter(s => s.major?.toLowerCase().includes(searchFilters.major.trim().toLowerCase()));
         }
         setFilteredStudents(result);
@@ -112,6 +118,7 @@ function BatchDetail() {
             studentId: '',
             fullName: '',
             birthDate: '',
+            faculty: '',
             major: ''
         });
     };
@@ -310,6 +317,34 @@ function BatchDetail() {
                                                 onChange={(e) => handleFilterChange('birthDate', e.target.value)}
                                             />
                                         </Grid>
+
+                                        {/* Tham khảo FacultyMembers.js để biết cách lấy danh sách khoa */}
+                                        {/* <TableCell>
+                                            <select value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)} style={{ width: '100%' }}>
+                                                <option value=''>Khoa</option>
+                                                {uniqueFaculties.map(dep => (
+                                                    <option key={dep} value={dep}>{dep}</option>
+                                                ))}
+                                        </TableCell> */}
+
+
+                                        <Grid item xs={12} sm={6} md={3}>
+                                            <TextField
+                                                fullWidth
+                                                variant="outlined"
+                                                label="Khoa"
+                                                placeholder="Nhập khoa..."
+                                                value={searchFilters.faculty}
+                                                onChange={(e) => handleFilterChange('faculty', e.target.value)}
+                                                InputProps={{
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <InfoIcon color="action" />
+                                                        </InputAdornment>
+                                                    ),
+                                                }}
+                                            />
+                                        </Grid>
                                         <Grid item xs={12} sm={6} md={3}>
                                             <TextField
                                                 fullWidth
@@ -481,6 +516,19 @@ function BatchDetail() {
                                                                     color: '#666'
                                                                 }}>
                                                                     {formatDate(student.birthDate)}
+                                                                </TableCell>
+                                                                <TableCell sx={{
+                                                                    borderBottom: '1px solid #e0e0e0'
+                                                                }}>
+                                                                    <Chip
+                                                                        label={student.faculty}
+                                                                        size="small"
+                                                                        sx={{
+                                                                            bgcolor: '#e8f5e8',
+                                                                            color: '#2e7d32',
+                                                                            fontWeight: 500
+                                                                        }}
+                                                                    />
                                                                 </TableCell>
                                                                 <TableCell sx={{
                                                                     borderBottom: '1px solid #e0e0e0'

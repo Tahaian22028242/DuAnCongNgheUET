@@ -97,6 +97,9 @@ function Profile() {
                   <strong>Họ và tên:</strong> {profileData?.fullName || 'N/A'}
                 </Typography>
                 <Typography variant="body1" sx={{ mb: 1 }}>
+                  <strong>Khoa:</strong> {profileData?.faculty || 'N/A'}
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 1 }}>
                   <strong>Ngành học:</strong> {profileData?.major || 'N/A'}
                 </Typography>
               </Box>
