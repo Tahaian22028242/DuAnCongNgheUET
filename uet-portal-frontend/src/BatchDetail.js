@@ -420,6 +420,14 @@ function BatchDetail() {
                                                                 borderBottom: '2px solid #dee2e6',
                                                                 fontSize: '0.95rem'
                                                             }}>
+                                                                Khoa
+                                                            </TableCell>
+                                                            <TableCell sx={{
+                                                                fontWeight: 'bold',
+                                                                bgcolor: '#f8f9fa',
+                                                                borderBottom: '2px solid #dee2e6',
+                                                                fontSize: '0.95rem'
+                                                            }}>
                                                                 Ngành học
                                                             </TableCell>
                                                             <TableCell sx={{

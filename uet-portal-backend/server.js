@@ -47,6 +47,7 @@ const userSchema = new mongoose.Schema({
     fullName: String,
     birthDate: Date,
     major: String,
+    faculty: String, // <-- Thêm trường Khoa (faculty)
   },
   notifications: [
     {
@@ -69,6 +70,7 @@ const studentBatchSchema = new mongoose.Schema({
       studentId: String,
       fullName: String,
       birthDate: Date,
+      faculty: String, // <-- Thêm Khoa
       major: String,
     },
   ],
@@ -265,7 +267,8 @@ app.post('/admin/upload-students', authenticateJWT, upload.single('excelFile'), 
           studentId: row.getCell(1).value?.toString(),
           fullName: row.getCell(2).value?.toString(),
           birthDate: birthDate,
-          major: row.getCell(4).value?.toString(),
+          faculty: row.getCell(4).value?.toString(), // Khoa (column 4)
+          major: row.getCell(5).value?.toString(),   // Ngành học (column 5)
         };
 
         students.push(studentData);
@@ -284,6 +287,7 @@ app.post('/admin/upload-students', authenticateJWT, upload.single('excelFile'), 
                 fullName: studentData.fullName,
                 birthDate: studentData.birthDate,
                 major: studentData.major,
+                faculty: studentData.faculty // Lưu Khoa vào studentInfo
               }
             });
             await newUser.save();
@@ -666,6 +670,7 @@ app.get('/student/profile', authenticateJWT, async (req, res) => {
       studentId: user.studentInfo.studentId,
       fullName: user.studentInfo.fullName,
       major: user.studentInfo.major,
+      faculty: user.studentInfo.faculty || null,
       // Không trả về ngày sinh vì yêu cầu chỉ cần 3 thông tin
     });
   } catch (error) {
@@ -1574,6 +1579,7 @@ app.get('/batch/:id/export', authenticateJWT, async (req, res) => {
       { header: 'Mã học viên', key: 'studentId', width: 20 },
       { header: 'Họ và tên', key: 'fullName', width: 30 },
       { header: 'Ngày sinh', key: 'birthDate', width: 18 },
+      { header: 'Khoa', key: 'faculty', width: 25 }, // Thêm cột Khoa
       { header: 'Ngành học', key: 'major', width: 25 },
     ];
 
@@ -1583,6 +1589,7 @@ app.get('/batch/:id/export', authenticateJWT, async (req, res) => {
         studentId: student.studentId,
         fullName: student.fullName,
         birthDate: student.birthDate ? new Date(student.birthDate).toLocaleDateString('vi-VN') : '',
+        faculty: student.faculty || '',
         major: student.major
       });
     });
@@ -2010,4 +2017,44 @@ app.delete('/admin/head/:headId', authenticateJWT, async (req, res) => {
   await User.findByIdAndDelete(headId);
   res.json({ message: 'Đã xóa CNBM khỏi hệ thống' });
 });
+
+// API xóa toàn bộ đợt học viên (cho admin) - có thể xóa cả tài khoản sinh viên
+app.delete('/admin/batch/:batchId', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Quản trị viên') {
+      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    }
+
+    const { batchId } = req.params;
+    const deleteAccounts = req.query.deleteAccounts === 'true' || req.query.deleteAccounts === true;
+
+    const batch = await StudentBatch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ message: 'Không tìm thấy đợt học viên' });
+    }
+
+    let deletedAccountsCount = 0;
+    if (deleteAccounts && Array.isArray(batch.students) && batch.students.length > 0) {
+      const studentIds = batch.students.map(s => s.studentId).filter(Boolean);
+      if (studentIds.length > 0) {
+        const deleteResult = await User.deleteMany({ username: { $in: studentIds }, role: 'Sinh viên' });
+        deletedAccountsCount = deleteResult.deletedCount || 0;
+      }
+    }
+
+    await StudentBatch.findByIdAndDelete(batchId);
+
+    res.status(200).json({
+      message: deleteAccounts
+        ? `Đã xóa đợt và ${deletedAccountsCount} tài khoản học viên liên quan.`
+        : 'Đã xóa đợt học viên (không xóa tài khoản).',
+      deletedAccounts: deletedAccountsCount
+    });
+  } catch (error) {
+    console.error('Error deleting batch:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+
 
