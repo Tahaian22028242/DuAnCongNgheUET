@@ -549,19 +549,23 @@ function BatchDetail() {
                                                                 }}>
                                                                     {user.role === 'Quản trị viên' && (
                                                                         <>
-                                                                            <IconButton onClick={() => {
-                                                                                setOriginalStudentId(student.studentId); // Lưu mã gốc
-                                                                                setStudentForm({
-                                                                                    studentId: student.studentId,
-                                                                                    fullName: student.fullName,
-                                                                                    birthDate: student.birthDate ? new Date(student.birthDate).toISOString().split('T')[0] : '',
-                                                                                    major: student.major
-                                                                                });
-                                                                                setEditDialogOpen(true);
-                                                                            }}>
-                                                                                <EditIcon />
-                                                                            </IconButton>
-                                                                            <IconButton color="error" onClick={() => { setSelectedStudent(student); setDeleteDialogOpen(true); }}><DeleteIcon /></IconButton>
+                                                                            <EditIcon
+                                                                                sx={{ cursor: 'pointer', mr: 1, color: '#1976d2' }}
+                                                                                onClick={() => {
+                                                                                    setOriginalStudentId(student.studentId); // Lưu mã gốc
+                                                                                    setStudentForm({
+                                                                                        studentId: student.studentId,
+                                                                                        fullName: student.fullName,
+                                                                                        birthDate: student.birthDate ? new Date(student.birthDate).toISOString().split('T')[0] : '',
+                                                                                        major: student.major
+                                                                                    });
+                                                                                    setEditDialogOpen(true);
+                                                                                }}
+                                                                            />
+                                                                            <DeleteIcon
+                                                                                sx={{ cursor: 'pointer', color: 'error.main' }}
+                                                                                onClick={() => { setSelectedStudent(student); setDeleteDialogOpen(true); }}
+                                                                            />
                                                                         </>
                                                                     )}
                                                                 </TableCell>
