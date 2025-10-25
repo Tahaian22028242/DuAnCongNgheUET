@@ -145,15 +145,11 @@ const AppLayout = ({ children }) => {
                     {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Chủ nhiệm bộ môn') && (
                         <ListItem button onClick={() => navigate('/batches')} sx={{ cursor: 'pointer', py: 0.5 }}>
                             <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                            {drawerOpen && <ListItemText primary="Danh sách học viên" />}
+                            {drawerOpen && <ListItemText primary="Quản lý học viên" />}
                         </ListItem>
                     )}
                     {user.role === 'Quản trị viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/upload')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <UploadFileIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Tải lên danh sách" />}
-                            </ListItem>
                             <ListItem button onClick={() => navigate('/upload-heads')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <UploadFileIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Tải lên CNBM" />}

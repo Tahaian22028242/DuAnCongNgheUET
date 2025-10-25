@@ -231,11 +231,12 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PeopleIcon from '@mui/icons-material/People';
+import SchoolIcon from '@mui/icons-material/School';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import axios from 'axios';
 import { format } from 'date-fns';
 import './Dashboard.css';
-import PeopleIcon from '@mui/icons-material/People';
-import SchoolIcon from '@mui/icons-material/School';
 import AppLayout from './AppLayout';
 
 function StudentBatches() {
@@ -330,11 +331,11 @@ function StudentBatches() {
     const content = () => {
         if (loading) {
             return (
-                <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
                     alignItems: 'center',
-                    minHeight: '400px' 
+                    minHeight: '400px'
                 }}>
                     <CircularProgress size={60} />
                 </Box>
@@ -355,8 +356,8 @@ function StudentBatches() {
             <Box sx={{ p: 3 }}>
                 {/* Message Alert */}
                 {message.text && (
-                    <Alert 
-                        severity={message.type} 
+                    <Alert
+                        severity={message.type}
                         sx={{ mb: 3, borderRadius: 2 }}
                         onClose={() => setMessage({ type: '', text: '' })}
                     >
@@ -365,10 +366,10 @@ function StudentBatches() {
                 )}
 
                 <Box sx={{ mb: 4 }}>
-                    <Typography 
-                        variant="h4" 
-                        gutterBottom 
-                        sx={{ 
+                    <Typography
+                        variant="h4"
+                        gutterBottom
+                        sx={{
                             fontWeight: 700,
                             color: '#1976d2',
                             mb: 1
@@ -382,8 +383,8 @@ function StudentBatches() {
                 </Box>
 
                 {batches.length === 0 ? (
-                    <Paper sx={{ 
-                        p: 6, 
+                    <Paper sx={{
+                        p: 6,
                         textAlign: 'center',
                         borderRadius: 3,
                         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
@@ -399,9 +400,9 @@ function StudentBatches() {
                 ) : (
                     <>
                         {/* Thống kê tổng quan */}
-                        <Paper sx={{ 
-                            p: 3, 
-                            mb: 4, 
+                        <Paper sx={{
+                            p: 3,
+                            mb: 4,
                             borderRadius: 3,
                             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             color: 'white'
@@ -448,8 +449,8 @@ function StudentBatches() {
                         <Grid container spacing={3}>
                             {batches.map((batch) => (
                                 <Grid item xs={12} sm={6} lg={4} key={batch._id}>
-                                    <Card 
-                                        sx={{ 
+                                    <Card
+                                        sx={{
                                             height: '100%',
                                             borderRadius: 3,
                                             transition: 'all 0.3s ease-in-out',
@@ -467,16 +468,16 @@ function StudentBatches() {
                                             height: '6px',
                                             background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
                                         }} />
-                                        
-                                        <CardActionArea 
+
+                                        <CardActionArea
                                             onClick={() => handleBatchClick(batch)}
                                             sx={{ height: 'calc(100% - 6px)' }}
                                         >
                                             <CardContent sx={{ p: 3, height: '100%' }}>
                                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                                                    <Typography 
-                                                        variant="h6" 
-                                                        sx={{ 
+                                                    <Typography
+                                                        variant="h6"
+                                                        sx={{
                                                             fontWeight: 700,
                                                             color: '#1976d2',
                                                             lineHeight: 1.2,
@@ -485,8 +486,8 @@ function StudentBatches() {
                                                     >
                                                         {batch.batchName}
                                                     </Typography>
-                                                    <Badge 
-                                                        badgeContent={batch.students.length} 
+                                                    <Badge
+                                                        badgeContent={batch.students.length}
                                                         color="primary"
                                                         sx={{ ml: 2 }}
                                                     >
@@ -495,15 +496,15 @@ function StudentBatches() {
                                                 </Box>
 
                                                 <Box sx={{ mb: 3 }}>
-                                                    <Typography 
-                                                        variant="body2" 
+                                                    <Typography
+                                                        variant="body2"
                                                         color="text.secondary"
                                                         sx={{ mb: 1 }}
                                                     >
                                                         <strong>Quyết định:</strong> {batch.decision}
                                                     </Typography>
-                                                    <Typography 
-                                                        variant="body2" 
+                                                    <Typography
+                                                        variant="body2"
                                                         color="text.secondary"
                                                     >
                                                         <strong>Ngày tải lên:</strong> {formatDate(batch.uploadDate)}
@@ -541,7 +542,7 @@ function StudentBatches() {
                                                                     key={index}
                                                                     label={major}
                                                                     size="small"
-                                                                    sx={{ 
+                                                                    sx={{
                                                                         fontSize: '0.7rem',
                                                                         height: '20px',
                                                                         bgcolor: '#f5f5f5',
@@ -554,7 +555,7 @@ function StudentBatches() {
                                                             <Chip
                                                                 label={`+${getUniqueSubjects(batch.students) - 2}`}
                                                                 size="small"
-                                                                sx={{ 
+                                                                sx={{
                                                                     fontSize: '0.7rem',
                                                                     height: '20px',
                                                                     bgcolor: '#e3f2fd',
@@ -603,6 +604,11 @@ function StudentBatches() {
             <div className="dashboard">
                 <div className="dashboard-content">
                     {content()}
+
+                    <Button onClick={() => navigate('/upload')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                        <UploadFileIcon sx={{ mr: 1, justifyContent: 'center' }} />
+                        Tải lên đợt học viên mới
+                    </Button>
 
                     {/* Delete batch confirmation dialog */}
                     <Dialog open={deleteBatchDialogOpen} onClose={() => setDeleteBatchDialogOpen(false)}>
