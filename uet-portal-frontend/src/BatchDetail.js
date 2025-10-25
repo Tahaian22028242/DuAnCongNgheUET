@@ -1,26 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box, Typography, Paper, Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, CircularProgress, Alert, Drawer, List, ListItem, ListItemText,
+    TableHead, TableRow, CircularProgress, Alert,
     Button, Toolbar, Chip, TextField, InputAdornment, Grid, IconButton, Dialog, DialogTitle, DialogContent,
-    DialogActions
+    DialogActions, MenuItem
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import logo from './logo.png';
-import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import GroupIcon from '@mui/icons-material/Group';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import AssignmentIcon from '@mui/icons-material/Assignment';
 import InfoIcon from '@mui/icons-material/Info';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import SettingsIcon from '@mui/icons-material/Settings';
-import HelpIcon from '@mui/icons-material/Help';
 import DownloadIcon from '@mui/icons-material/Download'; // Thêm import
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -54,7 +45,8 @@ function BatchDetail() {
     const user = JSON.parse(localStorage.getItem('user')) || {};
     const [originalStudentId, setOriginalStudentId] = useState('');
 
-    // const uniqueFaculties = Array.from(new Set(members.map(m => m.department).filter(Boolean))); // đang làm ở đây
+    const uniqueFaculties = Array.from(new Set(students.map(s => s.faculty).filter(Boolean)));
+    const uniqueMajors = Array.from(new Set(students.map(s => s.major).filter(Boolean)));
 
     useEffect(() => {
         fetchBatchDetail();
@@ -125,7 +117,6 @@ function BatchDetail() {
 
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
-        window.scrollTo(0, 0);
     };
 
     const handleChangeRowsPerPage = (event) => {
@@ -317,25 +308,14 @@ function BatchDetail() {
                                                 onChange={(e) => handleFilterChange('birthDate', e.target.value)}
                                             />
                                         </Grid>
-
-                                        {/* Tham khảo FacultyMembers.js để biết cách lấy danh sách khoa */}
-                                        {/* <TableCell>
-                                            <select value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)} style={{ width: '100%' }}>
-                                                <option value=''>Khoa</option>
-                                                {uniqueFaculties.map(dep => (
-                                                    <option key={dep} value={dep}>{dep}</option>
-                                                ))}
-                                        </TableCell> */}
-
-
                                         <Grid item xs={12} sm={6} md={3}>
                                             <TextField
+                                                select
                                                 fullWidth
                                                 variant="outlined"
                                                 label="Khoa"
-                                                placeholder="Nhập khoa..."
                                                 value={searchFilters.faculty}
-                                                onChange={(e) => handleFilterChange('faculty', e.target.value)}
+                                                onChange={e => handleFilterChange('faculty', e.target.value)}
                                                 InputProps={{
                                                     startAdornment: (
                                                         <InputAdornment position="start">
@@ -343,16 +323,21 @@ function BatchDetail() {
                                                         </InputAdornment>
                                                     ),
                                                 }}
-                                            />
+                                            >
+                                                <MenuItem value="">Tất cả</MenuItem>
+                                                {uniqueFaculties.map(fac => (
+                                                    <MenuItem key={fac} value={fac}>{fac}</MenuItem>
+                                                ))}
+                                            </TextField>
                                         </Grid>
                                         <Grid item xs={12} sm={6} md={3}>
                                             <TextField
+                                                select
                                                 fullWidth
                                                 variant="outlined"
                                                 label="Ngành học"
-                                                placeholder="Nhập ngành học..."
                                                 value={searchFilters.major}
-                                                onChange={(e) => handleFilterChange('major', e.target.value)}
+                                                onChange={e => handleFilterChange('major', e.target.value)}
                                                 InputProps={{
                                                     startAdornment: (
                                                         <InputAdornment position="start">
@@ -360,7 +345,12 @@ function BatchDetail() {
                                                         </InputAdornment>
                                                     ),
                                                 }}
-                                            />
+                                            >
+                                                <MenuItem value="">Tất cả</MenuItem>
+                                                {uniqueMajors.map(major => (
+                                                    <MenuItem key={major} value={major}>{major}</MenuItem>
+                                                ))}
+                                            </TextField>
                                         </Grid>
                                     </Grid>
                                     <Box sx={{ display: 'flex', gap: 2 }}>
