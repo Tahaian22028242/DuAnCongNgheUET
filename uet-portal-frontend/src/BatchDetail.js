@@ -133,7 +133,6 @@ function BatchDetail() {
     const handleChangeRowsPerPage = (event) => {
         setRowsPerPage(parseInt(event.target.value, 10));
         setPage(0);
-        window.scrollTo(0, 0);
     };
 
     const formatDate = (dateString) => {
@@ -581,12 +580,13 @@ function BatchDetail() {
                                                     </Typography>
                                                     <TextField
                                                         select
+                                                        fullWidth
                                                         label="Số dòng/trang"
                                                         value={rowsPerPage}
                                                         onChange={handleChangeRowsPerPage}
                                                         SelectProps={{ native: true }}
                                                         size="small"
-                                                        sx={{ width: 120, mr: 2 }}
+                                                        sx={{ minWidth: 80, width: 'auto', mr: 2 }}
                                                     >
                                                         {[10, 25, 50, 100, 200, 500].map((option) => (
                                                             <option key={option} value={option}>
@@ -639,7 +639,7 @@ function BatchDetail() {
                                     variant="contained"
                                     color="success"
                                     startIcon={<DownloadIcon />}
-                                    sx={{ mb: 2, ml: 2 }}
+                                    sx={{ mb: 2 }}
                                     onClick={() => window.open(`http://localhost:5000/batch/${batchId}/export`, '_blank')}
                                 >
                                     Xuất Excel danh sách học viên
