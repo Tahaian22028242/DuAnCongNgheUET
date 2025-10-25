@@ -150,21 +150,13 @@ const AppLayout = ({ children }) => {
                     )}
                     {user.role === 'Quản trị viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/upload-heads')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <UploadFileIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Tải lên CNBM" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/upload-lecturers')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <UploadFileIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Tải lên danh sách giảng viên" />}
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Quản lý giảng viên" />}
                             </ListItem>
                             <ListItem button onClick={() => navigate('/topic-proposals')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Đề tài chưa được phê duyệt" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông tin" />}
                             </ListItem>
                         </>
                     )}
@@ -176,7 +168,7 @@ const AppLayout = ({ children }) => {
                             </ListItem>
                             <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông tin" />}
+                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
                             </ListItem>
                             <ListItem button onClick={() => navigate('/notifications')}>
                                 <InfoIcon sx={{ mr: 1 }} />
@@ -185,10 +177,16 @@ const AppLayout = ({ children }) => {
                         </>
                     )}
                     {user.role === 'Giảng viên' && (
-                        <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                            <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                            {drawerOpen && <ListItemText primary="Đề xuất từ học viên" />}
-                        </ListItem>
+                        <>
+                            <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Đề xuất từ học viên" />}
+                            </ListItem>
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
+                            </ListItem>
+                        </>
                     )}
                     {user.role === 'Chủ nhiệm bộ môn' && (
                         <>

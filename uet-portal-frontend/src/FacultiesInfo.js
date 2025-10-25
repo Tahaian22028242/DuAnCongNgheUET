@@ -169,27 +169,13 @@
 
 // export default FacultiesInfo;
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
-  Box, Typography, Paper, List, ListItem, ListItemText, Drawer, CircularProgress
+  Box, Typography, Paper, List, ListItem, ListItemText, CircularProgress, Button
 } from '@mui/material';
-import logo from './logo.png';
-import HelpIcon from '@mui/icons-material/Help';
-import InfoIcon from '@mui/icons-material/Info';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import GroupIcon from '@mui/icons-material/Group';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import SettingsIcon from '@mui/icons-material/Settings';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import IconButton from '@mui/material/IconButton';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AppLayout from './AppLayout';
 
 function FacultiesInfo() {
@@ -254,6 +240,10 @@ function FacultiesInfo() {
                 )}
               </Paper>
             )}
+            <Button onClick={() => navigate('/upload-lecturers')} sx={{ cursor: 'pointer', py: 0.5 }}>
+              <UploadFileIcon sx={{ mr: 1, justifyContent: 'center' }} />
+              Tải lên danh sách giảng viên mới
+            </Button>
           </Box>
         </div>
       </div>

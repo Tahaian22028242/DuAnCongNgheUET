@@ -165,7 +165,7 @@ app.post('/register', async (req, res) => {
 });
 // API đăng nhập
 app.post('/login', async (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password} = req.body;
   try {
     const user = await User.findOne({ username });
     if (!user) {
@@ -175,11 +175,6 @@ app.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Mật khẩu không đúng' });
-    }
-
-    // Kiểm tra vai trò
-    if (user.role !== role) {
-      return res.status(401).json({ message: 'Vai trò không khớp' });
     }
 
     const authToken = await issueAuthToken(user);

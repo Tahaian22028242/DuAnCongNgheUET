@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, CircularProgress, Alert, TextField
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AppLayout from './AppLayout';
 
 function UploadLecturers() {
@@ -97,6 +98,14 @@ function UploadLecturers() {
                 </Typography>
               </Box>
             </Paper>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              sx={{ mb: 2 }}
+              onClick={() => navigate('/faculties-info')}
+            >
+              Quay lại danh sách Khoa/Ngành
+            </Button>
           </Box>
         </div>
       </div>

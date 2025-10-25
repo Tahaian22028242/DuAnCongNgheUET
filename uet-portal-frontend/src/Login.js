@@ -62,16 +62,6 @@ function Login({ setIsAuthenticated }) {
             />
           </div>
 
-          <div className="input-group">
-            <label>Vai trò *</label>
-            <select value={role} onChange={(e) => setRole(e.target.value)} required>
-              <option value="Sinh viên">Sinh viên</option>
-              <option value="Giảng viên">Giảng viên</option>
-              <option value="Quản trị viên">Quản trị viên</option>
-              <option value="Chủ nhiệm bộ môn">Chủ nhiệm bộ môn</option>
-            </select>
-          </div>
-
           <button type="submit">ĐĂNG NHẬP</button>
         </form>
         <p style={{ marginTop: '10px' }}>
