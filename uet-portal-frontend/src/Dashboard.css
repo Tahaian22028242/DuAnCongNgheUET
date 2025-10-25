@@ -38,10 +38,10 @@
   /* màu nền nhạt */
   min-height: calc(100vh - 64px);
   /* trừ chiều cao AppBar nếu có */
-
   display: flex;
   flex-direction: column;
   gap: 20px;
+  margin-left: 0px;
 }
 
 .MuiDrawer-paper {

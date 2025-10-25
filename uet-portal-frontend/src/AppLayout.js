@@ -31,6 +31,19 @@ const AppLayout = ({ children }) => {
         navigate('/');
     };
 
+    // Truyền prop cho dashboard-content
+    const dashboardContentClass = 'dashboard-content';
+
+    // Clone children để thêm className nếu là dashboard-content
+    const childrenWithClass = React.Children.map(children, child => {
+        if (React.isValidElement(child) && child.props.className === 'dashboard-content') {
+            return React.cloneElement(child, {
+                className: dashboardContentClass
+            });
+        }
+        return child;
+    });
+
     return (
         <div style={{ display: 'flex' }}>
             <Box
@@ -219,8 +232,8 @@ const AppLayout = ({ children }) => {
                     </ListItem>
                 </List>
             </Drawer>
-            <main style={{ flexGrow: 1, padding: 24, marginLeft: drawerOpen ? drawerWidth : collapsedWidth, transition: 'margin-left 0.2s' }}>
-                {children}
+            <main style={{ flexGrow: 1, padding: 0 }}>
+                {childrenWithClass}
             </main>
         </div>
     );
