@@ -45,8 +45,19 @@ function BatchDetail() {
     const user = JSON.parse(localStorage.getItem('user')) || {};
     const [originalStudentId, setOriginalStudentId] = useState('');
 
-    const uniqueFaculties = Array.from(new Set(students.map(s => s.faculty).filter(Boolean)));
-    const uniqueMajors = Array.from(new Set(students.map(s => s.major).filter(Boolean)));
+    const uniqueFaculties = Array.from(
+        new Set(
+            students
+                .map(s => s.faculty)
+                .filter(Boolean)
+        ));
+    const uniqueMajors = Array.from(
+        new Set(
+            students
+                .filter(s => !searchFilters.faculty || s.faculty === searchFilters.faculty)
+                .map(s => s.major)
+                .filter(Boolean)
+        ));
 
     useEffect(() => {
         fetchBatchDetail();
@@ -324,7 +335,7 @@ function BatchDetail() {
                                                     ),
                                                 }}
                                             >
-                                                <MenuItem value="">Tất cả</MenuItem>
+                                                <MenuItem value="">Tất cả</MenuItem>
                                                 {uniqueFaculties.map(fac => (
                                                     <MenuItem key={fac} value={fac}>{fac}</MenuItem>
                                                 ))}
