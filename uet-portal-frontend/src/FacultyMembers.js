@@ -332,7 +332,8 @@ function FacultyMembers() {
                           <TableCell>{row.role}</TableCell>
                           {user.role === 'Quản trị viên' && (
                             <TableCell>
-                              <IconButton
+                              <EditIcon
+                                sx={{ cursor: 'pointer', mr: 1, color: '#1976d2' }}
                                 onClick={() => {
                                   setSelectedMember(row);
                                   setMemberForm({
@@ -345,18 +346,14 @@ function FacultyMembers() {
                                   });
                                   setEditDialogOpen(true);
                                 }}
-                              >
-                                <EditIcon />
-                              </IconButton>
-                              <IconButton
-                                color="error"
+                              />
+                              <DeleteIcon
+                                sx={{ cursor: 'pointer', color: 'error.main' }}
                                 onClick={() => {
                                   setSelectedMember(row);
                                   setDeleteDialogOpen(true);
                                 }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
+                              />
                             </TableCell>
                           )}
                         </TableRow>
