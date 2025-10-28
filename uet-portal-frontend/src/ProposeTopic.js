@@ -21,7 +21,7 @@
 //   const [loading, setLoading] = useState(false);
 //   const [supervisorsLoading, setSupervisorsLoading] = useState(true);
 //   const [message, setMessage] = useState({ type: '', text: '' });
-  
+
 //   const user = JSON.parse(localStorage.getItem('user') || '{}');
 //   const navigate = useNavigate();
 
@@ -52,7 +52,7 @@
 
 //   const handleSubmit = async (e) => {
 //     e.preventDefault();
-    
+
 //     // Validation
 //     if (!formData.topicTitle.trim()) {
 //       setMessage({ type: 'error', text: 'Vui lòng nhập tên đề tài.' });
@@ -83,7 +83,7 @@
 //       );
 
 //       setMessage({ type: 'success', text: 'Đề xuất đề tài thành công! Vui lòng chờ giảng viên phê duyệt.' });
-      
+
 //       // Reset form
 //       setFormData({
 //         topicTitle: '',
@@ -91,7 +91,7 @@
 //         primarySupervisor: null,
 //         secondarySupervisor: null
 //       });
-      
+
 //     } catch (err) {
 //       console.error('Error submitting proposal:', err);
 //       setMessage({ 
@@ -328,7 +328,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Typography, Box, Paper, TextField, Button, Alert, 
+  Typography, Box, Paper, TextField, Button, Alert,
   Drawer, List, ListItem, ListItemText, Autocomplete,
   Grid, CircularProgress
 } from '@mui/material';
@@ -347,6 +347,8 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import App from './App';
+import AppLayout from './AppLayout';
 
 function ProposeTopic() {
   const [formData, setFormData] = useState({
@@ -359,7 +361,7 @@ function ProposeTopic() {
   const [loading, setLoading] = useState(false);
   const [supervisorsLoading, setSupervisorsLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
-  
+
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
 
@@ -390,7 +392,7 @@ function ProposeTopic() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.topicTitle.trim()) {
       setMessage({ type: 'error', text: 'Vui lòng nhập tên đề tài.' });
@@ -421,7 +423,7 @@ function ProposeTopic() {
       );
 
       setMessage({ type: 'success', text: 'Đề xuất đề tài thành công! Vui lòng chờ giảng viên phê duyệt.' });
-      
+
       // Reset form
       setFormData({
         topicTitle: '',
@@ -429,12 +431,12 @@ function ProposeTopic() {
         primarySupervisor: null,
         secondarySupervisor: null
       });
-      
+
     } catch (err) {
       console.error('Error submitting proposal:', err);
-      setMessage({ 
-        type: 'error', 
-        text: err.response?.data?.message || 'Có lỗi xảy ra khi gửi đề xuất.' 
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Có lỗi xảy ra khi gửi đề xuất.'
       });
     }
     setLoading(false);
@@ -447,8 +449,9 @@ function ProposeTopic() {
   };
 
   return (
-    <div className="dashboard">
-      <Drawer variant="permanent" anchor="left">
+    <AppLayout>
+      <div className="dashboard">
+        {/* <Drawer variant="permanent" anchor="left">
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
           <img
             src={logo}
@@ -547,143 +550,143 @@ function ProposeTopic() {
             <ListItemText primary="Logout" />
           </ListItem>
         </List>
-      </Drawer>
+      </Drawer> */}
+        <div className="dashboard-content">
+          <Box sx={{ p: 3, maxWidth: 800 }}>
+            <Typography variant="h4" gutterBottom>
+              Đề xuất đề cương
+            </Typography>
 
-      <div className="dashboard-content">
-        <Box sx={{ p: 3, maxWidth: 800 }}>
-          <Typography variant="h4" gutterBottom>
-            Đề xuất đề cương
-          </Typography>
+            {message.text && (
+              <Alert severity={message.type} sx={{ mb: 3 }}>
+                {message.text}
+              </Alert>
+            )}
 
-          {message.text && (
-            <Alert severity={message.type} sx={{ mb: 3 }}>
-              {message.text}
-            </Alert>
-          )}
+            <Paper sx={{ p: 3 }}>
+              <form onSubmit={handleSubmit}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {/* Tên đề tài - Hàng 1 */}
+                  <TextField
+                    fullWidth
+                    required
+                    label="Tên đề tài"
+                    variant="outlined"
+                    value={formData.topicTitle}
+                    onChange={(e) => handleInputChange('topicTitle', e.target.value)}
+                    placeholder="Nhập tên đề tài của bạn..."
+                    sx={{ minHeight: '56px' }}
+                  />
 
-          <Paper sx={{ p: 3 }}>
-            <form onSubmit={handleSubmit}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {/* Tên đề tài - Hàng 1 */}
-                <TextField
-                  fullWidth
-                  required
-                  label="Tên đề tài"
-                  variant="outlined"
-                  value={formData.topicTitle}
-                  onChange={(e) => handleInputChange('topicTitle', e.target.value)}
-                  placeholder="Nhập tên đề tài của bạn..."
-                  sx={{ minHeight: '56px' }}
-                />
+                  {/* Nội dung đề tài - Hàng 2 */}
+                  <TextField
+                    fullWidth
+                    required
+                    multiline
+                    rows={8}
+                    label="Nội dung đề tài"
+                    variant="outlined"
+                    value={formData.content}
+                    onChange={(e) => handleInputChange('content', e.target.value)}
+                    placeholder="Mô tả chi tiết về đề tài, mục tiêu, phương pháp thực hiện..."
+                  />
 
-                {/* Nội dung đề tài - Hàng 2 */}
-                <TextField
-                  fullWidth
-                  required
-                  multiline
-                  rows={8}
-                  label="Nội dung đề tài"
-                  variant="outlined"
-                  value={formData.content}
-                  onChange={(e) => handleInputChange('content', e.target.value)}
-                  placeholder="Mô tả chi tiết về đề tài, mục tiêu, phương pháp thực hiện..."
-                />
+                  {/* Giảng viên hướng dẫn chính - Hàng 3 */}
+                  <Autocomplete
+                    fullWidth
+                    options={supervisors}
+                    getOptionLabel={(option) => `${option.fullName} (${option.username})`}
+                    value={formData.primarySupervisor}
+                    onChange={(event, newValue) => {
+                      handleInputChange('primarySupervisor', newValue);
+                    }}
+                    loading={supervisorsLoading}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        required
+                        label="Giảng viên hướng dẫn chính"
+                        variant="outlined"
+                        placeholder="Tìm và chọn giảng viên..."
+                        sx={{ minHeight: '56px' }}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {supervisorsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
 
-                {/* Giảng viên hướng dẫn chính - Hàng 3 */}
-                <Autocomplete
-                  fullWidth
-                  options={supervisors}
-                  getOptionLabel={(option) => `${option.fullName} (${option.username})`}
-                  value={formData.primarySupervisor}
-                  onChange={(event, newValue) => {
-                    handleInputChange('primarySupervisor', newValue);
-                  }}
-                  loading={supervisorsLoading}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      required
-                      label="Giảng viên hướng dẫn chính"
-                      variant="outlined"
-                      placeholder="Tìm và chọn giảng viên..."
-                      sx={{ minHeight: '56px' }}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {supervisorsLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
-                  )}
-                />
+                  {/* Giảng viên hướng dẫn phụ - Hàng 4 */}
+                  <Autocomplete
+                    fullWidth
+                    options={supervisors}
+                    getOptionLabel={(option) => `${option.fullName} (${option.username})`}
+                    value={formData.secondarySupervisor}
+                    onChange={(event, newValue) => {
+                      handleInputChange('secondarySupervisor', newValue);
+                    }}
+                    loading={supervisorsLoading}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Giảng viên hướng dẫn phụ (tùy chọn)"
+                        variant="outlined"
+                        placeholder="Tìm và chọn giảng viên..."
+                        sx={{ minHeight: '56px' }}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {supervisorsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
 
-                {/* Giảng viên hướng dẫn phụ - Hàng 4 */}
-                <Autocomplete
-                  fullWidth
-                  options={supervisors}
-                  getOptionLabel={(option) => `${option.fullName} (${option.username})`}
-                  value={formData.secondarySupervisor}
-                  onChange={(event, newValue) => {
-                    handleInputChange('secondarySupervisor', newValue);
-                  }}
-                  loading={supervisorsLoading}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Giảng viên hướng dẫn phụ (tùy chọn)"
-                      variant="outlined"
-                      placeholder="Tìm và chọn giảng viên..."
-                      sx={{ minHeight: '56px' }}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {supervisorsLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-
-                {/* Submit button */}
-                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    size="large"
-                    startIcon={<SendIcon />}
-                    disabled={loading}
-                  >
-                    {loading ? 'Đang gửi...' : 'Gửi đề xuất'}
-                  </Button>
+                  {/* Submit button */}
+                  <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      startIcon={<SendIcon />}
+                      disabled={loading}
+                    >
+                      {loading ? 'Đang gửi...' : 'Gửi đề xuất'}
+                    </Button>
+                  </Box>
                 </Box>
-              </Box>
-            </form>
-          </Paper>
+              </form>
+            </Paper>
 
-          {/* Hướng dẫn */}
-          <Paper sx={{ p: 3, mt: 3, bgcolor: '#f5f5f5' }}>
-            <Typography variant="h6" gutterBottom>
-              Hướng dẫn
-            </Typography>
-            <Typography variant="body2" component="div">
-              <ul>
-                <li>Tên đề tài nên ngắn gọn, súc tích và thể hiện rõ nội dung nghiên cứu</li>
-                <li>Nội dung đề tài cần mô tả chi tiết về mục tiêu, phương pháp và kết quả mong đợi</li>
-                <li>Bắt buộc phải có giảng viên hướng dẫn chính</li>
-                <li>Giảng viên hướng dẫn phụ là tùy chọn</li>
-                <li>Sau khi gửi, đề xuất sẽ được chuyển đến giảng viên hướng dẫn để xem xét</li>
-              </ul>
-            </Typography>
-          </Paper>
-        </Box>
+            {/* Hướng dẫn */}
+            <Paper sx={{ p: 3, mt: 3, bgcolor: '#f5f5f5' }}>
+              <Typography variant="h6" gutterBottom>
+                Hướng dẫn
+              </Typography>
+              <Typography variant="body2" component="div">
+                <ul>
+                  <li>Tên đề tài nên ngắn gọn, súc tích và thể hiện rõ nội dung nghiên cứu</li>
+                  <li>Nội dung đề tài cần mô tả chi tiết về mục tiêu, phương pháp và kết quả mong đợi</li>
+                  <li>Bắt buộc phải có giảng viên hướng dẫn chính</li>
+                  <li>Giảng viên hướng dẫn phụ là tùy chọn</li>
+                  <li>Sau khi gửi, đề xuất sẽ được chuyển đến giảng viên hướng dẫn để xem xét</li>
+                </ul>
+              </Typography>
+            </Paper>
+          </Box>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 
