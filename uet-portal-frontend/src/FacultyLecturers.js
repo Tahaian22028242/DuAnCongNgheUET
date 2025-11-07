@@ -26,7 +26,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import App from './App';
 
-function FacultyMembers() {
+function FacultyLecturers() {
   const { facultyName } = useParams();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -566,4 +566,4 @@ function FacultyMembers() {
   );
 }
 
-export default FacultyMembers;
+export default FacultyLecturers;

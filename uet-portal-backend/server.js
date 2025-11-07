@@ -260,7 +260,7 @@ app.post('/admin/upload-students', authenticateJWT, upload.single('excelFile'), 
 
         const studentData = {
           studentId: row.getCell(1).value?.toString(),
-          fullName: row.getCell(2).value?.toString(),
+          fullName: row.getCell(2).value?.toString(), 
           birthDate: birthDate,
           faculty: row.getCell(4).value?.toString(), // Khoa (column 4)
           major: row.getCell(5).value?.toString(),   // Ngành học (column 5)
