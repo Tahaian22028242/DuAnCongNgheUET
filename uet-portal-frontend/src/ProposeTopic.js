@@ -697,6 +697,8 @@ import {
   Grid, CircularProgress
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import CloseIcon from '@mui/icons-material/Close';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import axios from 'axios';
 import './Dashboard.css';
 import logo from './logo.png';
@@ -965,6 +967,10 @@ function ProposeTopic() {
                       handleInputChange('primarySupervisor', newValue);
                     }}
                     loading={supervisorsLoading}
+                    popupIcon={formData.primarySupervisor ? null : <ArrowDropDownIcon />}
+                    forcePopupIcon={!formData.primarySupervisor}
+                    disableClearable={!formData.primarySupervisor}
+                    clearIcon={<CloseIcon />}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -996,6 +1002,10 @@ function ProposeTopic() {
                       handleInputChange('secondarySupervisor', newValue);
                     }}
                     loading={supervisorsLoading}
+                    popupIcon={formData.secondarySupervisor ? null : <ArrowDropDownIcon />}
+                    forcePopupIcon={!formData.secondarySupervisor}
+                    disableClearable={!formData.secondarySupervisor}
+                    clearIcon={<CloseIcon />}
                     renderInput={(params) => (
                       <TextField
                         {...params}

@@ -20,6 +20,7 @@ import FacultiesInfo from './FacultiesInfo';
 import FacultyLecturers from './FacultyLecturers';
 import Calendar from './Calendar'; // Import the new Calendar component
 import Notifications from './Notifications'; // Import the Notifications component
+import FacultyLeaderTopics from './FacultyLeaderTopics';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -151,6 +152,14 @@ function App() {
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
                         <HeadStatistics />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/faculty-leader/topics"
+                element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                        <FacultyLeaderTopics />
                     </ProtectedRoute>
                 }
             />

@@ -52,7 +52,7 @@ function UploadHeads() {
           <Box sx={{ p: 3 }}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Tải lên danh sách Chủ nhiệm bộ môn
+                Tải lên danh sách Lãnh đạo bộ môn
               </Typography>
               <form onSubmit={handleUpload}>
                 <input

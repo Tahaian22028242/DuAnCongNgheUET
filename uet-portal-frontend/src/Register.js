@@ -60,7 +60,8 @@ function Register() {
               <option value="Sinh viên">Sinh viên</option>
               <option value="Giảng viên">Giảng viên</option>
               <option value="Quản trị viên">Quản trị viên</option>
-              <option value="Chủ nhiệm bộ môn">Chủ nhiệm bộ môn</option>
+              <option value="Lãnh đạo bộ môn">Lãnh đạo bộ môn</option>
+              <option value="Lãnh đạo khoa">Lãnh đạo khoa</option>
             </select>
           </div>
           <button type="submit">ĐĂNG KÝ</button>

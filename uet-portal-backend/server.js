@@ -31,15 +31,18 @@ app.use(cookieParser());
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, required: true, enum: ['Sinh viên', 'Giảng viên', 'Quản trị viên', 'Chủ nhiệm bộ môn'] },
-  managedMajor: { type: String }, // ngành mà CNBM quản lý
+  // Cập nhật danh sách role: thêm 'Lãnh đạo bộ môn', 'Lãnh đạo khoa' (giữ tạm 'Chủ nhiệm bộ môn' để tương thích dữ liệu cũ)
+  role: { type: String, required: true, enum: ['Sinh viên', 'Giảng viên', 'Quản trị viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'] },
+  // Lãnh đạo khoa dùng managedMajor (theo yêu cầu), Lãnh đạo bộ môn dùng managedDepartment
+  managedMajor: { type: String },
+  managedDepartment: { type: String },
   // Thông tin chung cho tất cả user
   userInfo: {
     fullName: String,
     email: String,
-    faculty: String,      // <-- Thêm trường này để lưu Khoa/ngành cho giảng viên
-    department: String,   // Bộ môn/phòng thí nghiệm
-    position: String      // Chức vụ
+    faculty: String,
+    department: String,
+    position: String
   },
   // Thông tin riêng cho sinh viên
   studentInfo: {
@@ -180,24 +183,30 @@ app.post('/login', async (req, res) => {
     const authToken = await issueAuthToken(user);
     issueAuthTokenCookie(res, authToken);
 
-    // CHỈNH SỬA: Trả về thông tin phù hợp theo role
-        let responseData = {
-            message: 'Đăng nhập thành công',
-            user: {
-                username: user.username,
-                role: user.role,
-            }
-        };
+    // Chuẩn hóa role hiển thị: map 'Chủ nhiệm bộ môn' -> 'Lãnh đạo bộ môn'
+    const normalizedRole = user.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : user.role;
 
-        // Thêm thông tin cụ thể theo role
-        if (user.role === 'Sinh viên') {
-            responseData.user.studentInfo = user.studentInfo || null;
-        } else if (user.role === 'Chủ nhiệm bộ môn') {
-            responseData.user.userInfo = user.userInfo || null;
-            responseData.user.managedMajor = user.managedMajor || null;
-        }
+    let responseData = {
+      message: 'Đăng nhập thành công',
+      user: {
+        username: user.username,
+        role: normalizedRole,
+      }
+    };
 
-        res.status(200).json(responseData);
+    if (normalizedRole === 'Sinh viên') {
+      responseData.user.studentInfo = user.studentInfo || null;
+    } else if (normalizedRole === 'Lãnh đạo bộ môn') {
+      responseData.user.userInfo = user.userInfo || null;
+      responseData.user.managedDepartment = user.managedDepartment || null;
+    } else if (normalizedRole === 'Lãnh đạo khoa') {
+      responseData.user.userInfo = user.userInfo || null;
+      responseData.user.managedMajor = user.managedMajor || null; // theo yêu cầu dùng managedMajor cho lãnh đạo khoa
+    } else {
+      responseData.user.userInfo = user.userInfo || null;
+    }
+
+    res.status(200).json(responseData);
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
@@ -342,103 +351,72 @@ app.post('/admin/upload-heads', authenticateJWT, upload.single('excelFile'), asy
         const errors = [];
         const headsData = [];
 
-        // CHỈNH SỬA: Cải thiện cách đọc dữ liệu từ Excel
         worksheet.eachRow((row, rowNumber) => {
             if (rowNumber > 1) { // Bỏ qua header row
-                // SỬA LỖI: Lấy giá trị cell một cách an toàn
                 const stt = getCellValue(row.getCell(1));
                 const fullName = getCellValue(row.getCell(2));
                 const email = getCellValue(row.getCell(3));
-                const managedMajor = getCellValue(row.getCell(4));
+                const managedDepartment = getCellValue(row.getCell(4));
 
-                console.log(`Hàng ${rowNumber}:`, { stt, fullName, email, managedMajor }); // Debug log
-
-                // Kiểm tra đầy đủ thông tin và email hợp lệ
-                if (stt && fullName && email && managedMajor && 
-                    email.includes('@') && email.includes('.')) {
+                if (stt && fullName && email && managedDepartment && email.includes('@') && email.includes('.')) {
                     headsData.push({
                         stt: stt.trim(),
                         fullName: fullName.trim(),
-                        email: email.trim().toLowerCase(), // Chuyển về lowercase để tránh lỗi
-                        managedMajor: managedMajor.trim()
+                        email: email.trim().toLowerCase(),
+                        managedDepartment: managedDepartment.trim()
                     });
                 } else {
-                    console.log(`Bỏ qua hàng ${rowNumber}: thiếu thông tin hoặc email không hợp lệ`);
-                    errors.push(`Hàng ${rowNumber}: Thiếu thông tin (STT: ${stt}, Tên: ${fullName}, Email: ${email}, Khoa: ${managedMajor})`);
+                    errors.push(`Hàng ${rowNumber}: Thiếu thông tin (STT: ${stt}, Tên: ${fullName}, Email: ${email}, Bộ môn: ${managedDepartment})`);
                 }
             }
         });
 
-        console.log('Dữ liệu đã đọc:', headsData); // Debug log
-
-        // Xử lý từng CNBM một cách tuần tự
         for (const headData of headsData) {
             try {
-                // Kiểm tra xem email đã tồn tại chưa
                 const existingUser = await User.findOne({ username: headData.email });
-                
                 if (!existingUser) {
-                    // Kiểm tra xem ngành này đã có CNBM chưa
+                    // Mỗi bộ môn chỉ có 1 Lãnh đạo bộ môn
                     const existingHead = await User.findOne({
-                        role: 'Chủ nhiệm bộ môn',
-                        managedMajor: headData.managedMajor
+                        role: { $in: ['Lãnh đạo bộ môn'] },
+                        managedDepartment: headData.managedDepartment
                     });
 
                     if (!existingHead) {
                         const hashedPassword = await bcrypt.hash('123', 10);
-                        
                         const newUser = new User({
-                            username: headData.email, // Đảm bảo username là email
+                            username: headData.email,
                             password: hashedPassword,
-                            role: 'Chủ nhiệm bộ môn',
+                            role: 'Lãnh đạo bộ môn',
                             userInfo: {
                                 fullName: headData.fullName,
                                 email: headData.email
                             },
-                            managedMajor: headData.managedMajor
+                            managedDepartment: headData.managedDepartment
                         });
-
                         await newUser.save();
-                        console.log(`Đã tạo tài khoản cho: ${headData.email}`); // Debug log
-                        
-                        createdHeads.push({
-                            email: headData.email,
-                            fullName: headData.fullName,
-                            managedMajor: headData.managedMajor
-                        });
+                        createdHeads.push({ email: headData.email, fullName: headData.fullName, managedDepartment: headData.managedDepartment });
                     } else {
-                        errors.push(`Ngành ${headData.managedMajor} đã có CNBM: ${existingHead.userInfo?.fullName || existingHead.username}`);
+                        errors.push(`Bộ môn ${headData.managedDepartment} đã có Lãnh đạo bộ môn: ${existingHead.userInfo?.fullName || existingHead.username}`);
                     }
                 } else {
                     errors.push(`Email đã tồn tại: ${headData.email}`);
                 }
             } catch (userError) {
-                console.error(`Error creating head for ${headData.email}:`, userError);
                 errors.push(`Lỗi tạo tài khoản cho ${headData.email}: ${userError.message}`);
             }
         }
 
-        // Clean up the uploaded file
-        fs.unlink(file.path, (err) => {
-            if (err) console.error('Lỗi xóa file:', err);
-        });
+        fs.unlink(file.path, (err) => { if (err) console.error('Lỗi xóa file:', err); });
 
         res.status(201).json({
-            message: 'Tải lên danh sách Chủ nhiệm bộ môn hoàn tất',
-            success: {
-                total: createdHeads.length,
-                accounts: createdHeads
-            },
+            message: 'Tải lên danh sách Lãnh đạo bộ môn hoàn tất',
+            success: { total: createdHeads.length, accounts: createdHeads },
             errors: errors.length > 0 ? errors : undefined,
             totalProcessed: headsData.length
         });
     } catch (error) {
-        console.error('Upload heads error:', error);
-        // Clean up file nếu có lỗi
         if (file && file.path) {
-            fs.unlink(file.path, (err) => {
-                if (err) console.error('Lỗi xóa file:', err);
-            });
+            fs.unlink(file.path, (err) => { if (err) console.error('Lỗi xóa file:', err); });
         }
         res.status(500).json({ message: 'Lỗi server', error: error.message });
     }
@@ -472,7 +450,7 @@ app.get('/students/batches', authenticateJWT, async (req, res) => {
     // Kiểm tra quyền truy cập
     if (req.user.role === 'Quản trị viên' || req.user.role === 'Giảng viên') {
       allowedToView = true;
-    } else if (req.user.role === 'Chủ nhiệm bộ môn') {
+    } else if (req.user.role === 'Lãnh đạo bộ môn') {
       allowedToView = true;
       // CNBM chỉ được xem sinh viên thuộc ngành mình quản lý
       const head = await User.findById(req.user._id);
@@ -542,27 +520,28 @@ app.get('/batch/:id', authenticateJWT, async (req, res) => {
 });
 
 
-// API lấy danh sách CNBM (cho admin quản lý)
+// API cho Admin quản lý danh sách Lãnh đạo bộ môn
 app.get('/admin/heads', authenticateJWT, async (req, res) => {
   try {
     if (req.user.role !== 'Quản trị viên') {
       return res.status(403).json({ message: 'Chỉ admin mới có quyền truy cập' });
     }
 
-    const heads = await User.find({ role: 'Chủ nhiệm bộ môn' })
-      .select('username userInfo.fullName managedMajor createdAt')
+    const heads = await User.find({ role: { $in: ['Lãnh đạo bộ môn'] } })
+      .select('username userInfo.fullName managedDepartment managedMajor createdAt')
       .sort({ createdAt: -1 });
 
     const headsList = heads.map(head => ({
       id: head._id,
       email: head.username,
       fullName: head.userInfo?.fullName || 'Chưa có tên',
-      managedMajor: head.managedMajor,
+      managedDepartment: head.managedDepartment || null,
+      managedMajor: head.managedMajor || null,
       createdAt: head.createdAt
     }));
 
     res.status(200).json({
-      message: 'Lấy danh sách CNBM thành công',
+      message: 'Lấy danh sách Lãnh đạo bộ môn thành công',
       total: headsList.length,
       heads: headsList
     });
@@ -571,7 +550,7 @@ app.get('/admin/heads', authenticateJWT, async (req, res) => {
   }
 });
 
-// API xóa CNBM (cho admin)
+// API xóa Lãnh đạo bộ môn (cho admin)
 app.delete('/admin/heads/:id', authenticateJWT, async (req, res) => {
   try {
     if (req.user.role !== 'Quản trị viên') {
@@ -581,21 +560,21 @@ app.delete('/admin/heads/:id', authenticateJWT, async (req, res) => {
     const headId = req.params.id;
     const head = await User.findById(headId);
 
-    if (!head || head.role !== 'Chủ nhiệm bộ môn') {
-      return res.status(404).json({ message: 'Không tìm thấy Chủ nhiệm bộ môn' });
+    if (!head || !['Lãnh đạo bộ môn'].includes(head.role)) {
+      return res.status(404).json({ message: 'Không tìm thấy Lãnh đạo bộ môn' });
     }
 
     await User.findByIdAndDelete(headId);
 
     res.status(200).json({
-      message: `Đã xóa Chủ nhiệm bộ môn ${head.userInfo?.fullName || head.username}`,
+      message: `Đã xóa Lãnh đạo bộ môn ${head.userInfo?.fullName || head.username}`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
 
-// API cập nhật thông tin CNBM
+// API cập nhật thông tin Lãnh đạo bộ môn
 app.put('/admin/heads/:id', authenticateJWT, async (req, res) => {
   try {
     if (req.user.role !== 'Quản trị viên') {
@@ -603,45 +582,40 @@ app.put('/admin/heads/:id', authenticateJWT, async (req, res) => {
     }
 
     const headId = req.params.id;
-    const { fullName, managedMajor } = req.body;
+    const { fullName, managedDepartment } = req.body;
 
     const head = await User.findById(headId);
-    if (!head || head.role !== 'Chủ nhiệm bộ môn') {
-      return res.status(404).json({ message: 'Không tìm thấy Chủ nhiệm bộ môn' });
+    if (!head || !['Lãnh đạo bộ môn'].includes(head.role)) {
+      return res.status(404).json({ message: 'Không tìm thấy Lãnh đạo bộ môn' });
     }
 
-    // Cập nhật thông tin
     if (fullName) {
       head.userInfo = head.userInfo || {};
       head.userInfo.fullName = fullName;
     }
 
-    if (managedMajor) {
-      // Kiểm tra xem ngành này đã có CNBM chưa
+    if (managedDepartment) {
       const existingHead = await User.findOne({
-        role: 'Chủ nhiệm bộ môn',
-        managedMajor: managedMajor,
+        role: { $in: ['Lãnh đạo bộ môn'] },
+        managedDepartment: managedDepartment,
         _id: { $ne: headId }
       });
 
       if (existingHead) {
-        return res.status(400).json({
-          message: `Ngành "${managedMajor}" đã có Chủ nhiệm bộ môn khác`,
-        });
+        return res.status(400).json({ message: `Bộ môn "${managedDepartment}" đã có Lãnh đạo bộ môn khác` });
       }
-
-      head.managedMajor = managedMajor;
+      head.managedDepartment = managedDepartment;
     }
 
     await head.save();
 
     res.status(200).json({
-      message: 'Cập nhật thông tin CNBM thành công',
+      message: 'Cập nhật thông tin Lãnh đạo bộ môn thành công',
       head: {
         id: head._id,
         email: head.username,
         fullName: head.userInfo?.fullName,
-        managedMajor: head.managedMajor
+        managedDepartment: head.managedDepartment
       }
     });
   } catch (error) {
@@ -649,911 +623,40 @@ app.put('/admin/heads/:id', authenticateJWT, async (req, res) => {
   }
 });
 
-// API cho sinh viên xem thông tin cá nhân
-app.get('/student/profile', authenticateJWT, async (req, res) => {
-  try {
-    if (req.user.role !== 'Sinh viên') {
-      return res.status(403).json({ message: 'Chỉ sinh viên mới có quyền truy cập' });
-    }
-
-    const user = await User.findById(req.user._id);
-    if (!user || !user.studentInfo) {
-      return res.status(404).json({ message: 'Không tìm thấy thông tin sinh viên' });
-    }
-
-    res.status(200).json({
-      studentId: user.studentInfo.studentId,
-      fullName: user.studentInfo.fullName,
-      major: user.studentInfo.major,
-      faculty: user.studentInfo.faculty || null,
-      // Không trả về ngày sinh vì yêu cầu chỉ cần 3 thông tin
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API lấy danh sách giảng viên (cho autocomplete)
-app.get('/supervisors', authenticateJWT, async (req, res) => {
-  try {
-    const supervisors = await User.find({ role: 'Giảng viên' }).select('username studentInfo.fullName');
-
-    const supervisorList = supervisors.map(supervisor => ({
-      username: supervisor.username,
-      fullName: supervisor.studentInfo?.fullName || supervisor.username
-    }));
-
-    res.status(200).json(supervisorList);
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API sinh viên đề xuất đề tài
-app.post('/student/propose-topic', authenticateJWT, async (req, res) => {
-  try {
-    if (req.user.role !== 'Sinh viên') {
-      return res.status(403).json({ message: 'Chỉ sinh viên mới có quyền đề xuất đề tài' });
-    }
-
-    const { topicTitle, content, primarySupervisor, secondarySupervisor } = req.body;
-
-    if (!topicTitle || !content || !primarySupervisor) {
-      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
-    }
-
-    const user = await User.findById(req.user._id);
-    const proposal = new TopicProposal({
-      studentId: user.studentInfo?.studentId || user.username,
-      studentName: user.studentInfo?.fullName || user.username,
-      topicTitle,
-      content,
-      primarySupervisor,
-      secondarySupervisor
-    });
-
-    await proposal.save();
-
-    res.status(201).json({
-      message: 'Đề xuất đề tài thành công',
-      proposal: {
-        id: proposal._id,
-        topicTitle: proposal.topicTitle,
-        status: proposal.status
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API giảng viên xem đề xuất đề tài của sinh viên
-app.get('/supervisor/topic-proposals', authenticateJWT, async (req, res) => {
-  try {
-    if (req.user.role !== 'Giảng viên') {
-      return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền truy cập' });
-    }
-
-    const proposals = await TopicProposal.find({
-      $or: [
-        { primarySupervisor: req.user.username },
-        { secondarySupervisor: req.user.username }
-      ]
-    }).sort({ submittedAt: -1 });
-
-    res.status(200).json(proposals);
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API giảng viên phê duyệt/từ chối đề tài (da cập nhật API giảng viên phê duyệt/từ chối đề tài để hỗ trợ bổ sung giảng viên đồng hướng dẫn)
-app.put('/supervisor/review-topic/:id', authenticateJWT, async (req, res) => {
-  try {
-    if (req.user.role !== 'Giảng viên') {
-      return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền phê duyệt' });
-    }
-
-    const { status, comments, topicTitle, content, secondarySupervisor } = req.body;
-    const proposalId = req.params.id;
-
-    if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
-    }
-
-    const proposal = await TopicProposal.findById(proposalId);
-    if (!proposal) {
-      return res.status(404).json({ message: 'Không tìm thấy đề xuất' });
-    }
-
-    // Kiểm tra quyền
-    if (proposal.primarySupervisor !== req.user.username && proposal.secondarySupervisor !== req.user.username) {
-      return res.status(403).json({ message: 'Bạn không có quyền phê duyệt đề xuất này' });
-    }
-
-    // Cập nhật thông tin
-    proposal.status = status;
-    proposal.supervisorComments = comments;
-    proposal.reviewedAt = new Date();
-    proposal.reviewedBy = req.user._id;
-
-    // Cập nhật thông tin đề tài nếu có chỉnh sửa
-    if (topicTitle) proposal.topicTitle = topicTitle;
-    if (content) proposal.content = content;
-    if (secondarySupervisor !== undefined) proposal.secondarySupervisor = secondarySupervisor;
-
-    // Nếu phê duyệt, tìm CNBM quản lý ngành của sinh viên
-    if (status === 'approved') {
-      const studentUser = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
-      if (studentUser && studentUser.studentInfo && studentUser.studentInfo.major) {
-        const head = await User.findOne({ role: 'Chủ nhiệm bộ môn', managedMajor: studentUser.studentInfo.major });
-        if (head) {
-          proposal.status = 'waiting_head_approval';
-          proposal.headId = head._id;
-        }
-      }
-    }
-
-    await proposal.save();
-
-    // Sau khi proposal.status được cập nhật
-    const studentUser = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
-    if (studentUser) {
-      let notifyMsg = '';
-      if (status === 'approved') {
-        notifyMsg = `Đề tài "${proposal.topicTitle}" của bạn đã được giảng viên phê duyệt.`;
-      } else if (status === 'rejected') {
-        notifyMsg = `Đề tài "${proposal.topicTitle}" của bạn đã bị từ chối.`;
-      }
-      studentUser.notifications = studentUser.notifications || [];
-      studentUser.notifications.push({
-        message: notifyMsg,
-        type: 'topic',
-        createdAt: new Date(),
-        read: false
-      });
-      await studentUser.save();
-    }
-
-    res.status(200).json({
-      message: `Đề tài đã được ${status === 'approved' ? 'phê duyệt' : 'từ chối'}`,
-      proposal
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API admin xem tất cả đề tài
-app.get('/admin/topic-proposals', authenticateJWT, async (req, res) => {
+// API xóa toàn bộ đợt học viên (cho admin) - có thể xóa cả tài khoản sinh viên
+app.delete('/admin/batch/:batchId', authenticateJWT, async (req, res) => {
   try {
     if (req.user.role !== 'Quản trị viên') {
-      return res.status(403).json({ message: 'Chỉ quản trị viên mới có quyền truy cập' });
-    }
-
-    const { status } = req.query;
-    let filter = {};
-    if (status) {
-      filter.status = status;
-    }
-
-    const proposals = await TopicProposal.find(filter)
-      .populate('reviewedBy', 'username')
-      .sort({ submittedAt: -1 });
-
-    res.status(200).json(proposals);
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// Nếu sửa code chỉ được sửa từ dòng này
-     
-
-// API kiểm tra xác thực
-app.get('/auth/check', authenticateJWT, (req, res) => {
-  res.status(200).json({
-    authenticated: true,
-    user: {
-      username: req.user.username,
-      role: req.user.role
-    }
-  });
-});
-
-// API đăng xuất
-app.post('/logout', (req, res) => {
-  res.clearCookie('auth_token');
-  res.status(200).json({ message: 'Đăng xuất thành công' });
-});
-
-// API CNBM xem các đề tài chờ duyệt
-app.get('/head/topic-proposals', authenticateJWT, async (req, res) => {
-  if (req.user.role !== 'Chủ nhiệm bộ môn') {
-    return res.status(403).json({ message: 'Chỉ CNBM mới có quyền truy cập' });
-  }
-  const proposals = await TopicProposal.find({ headId: req.user._id, status: 'waiting_head_approval' });
-  res.status(200).json(proposals);
-});
-
-// API CNBM duyệt hoặc trả lại đề tài
-app.put('/head/review-topic/:id', authenticateJWT, async (req, res) => {
-  if (req.user.role !== 'Chủ nhiệm bộ môn') {
-    return res.status(403).json({ message: 'Chỉ CNBM mới có quyền duyệt' });
-  }
-  const { status, comments } = req.body;
-  if (!['approved_by_head', 'returned'].includes(status)) {
-    return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
-  }
-  const proposal = await TopicProposal.findById(req.params.id);
-  const studentUser = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
-  if (status === 'approved_by_head') {
-    proposal.status = 'approved_by_head';
-    proposal.headComments = comments;
-    await proposal.save();
-    if (studentUser) {
-      studentUser.notifications = studentUser.notifications || [];
-      studentUser.notifications.push({
-        message: `Đề tài "${proposal.topicTitle}" của bạn đã được CNBM phê duyệt.`,
-        type: 'topic',
-        createdAt: new Date(),
-        read: false
-      });
-      await studentUser.save();
-    }
-    res.status(200).json({ message: 'Đề tài đã được CNBM phê duyệt', proposal });
-  } else {
-    // Trả lại: xóa đề tài khỏi DB
-    if (studentUser) {
-      studentUser.notifications = studentUser.notifications || [];
-      studentUser.notifications.push({
-        message: `Đề tài "${proposal.topicTitle}" của bạn đã bị CNBM trả lại.`,
-        type: 'topic',
-        createdAt: new Date(),
-        read: false
-      });
-      await studentUser.save();
-    }
-    await proposal.deleteOne();
-    res.status(200).json({ message: 'Đề tài đã bị trả lại và xóa khỏi hệ thống' });
-  }
-});
-
-// API đổi mật khẩu
-app.post('/change-password', authenticateJWT, async (req, res) => {
-  try {
-    const { oldPassword, newPassword, confirmPassword } = req.body;
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin.' });
-    }
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({ message: 'Mật khẩu mới và xác nhận không khớp.' });
-    }
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ message: 'Không tìm thấy người dùng.' });
-    }
-    const isMatch = await bcrypt.compare(oldPassword, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Mật khẩu cũ không đúng.' });
-    }
-    user.password = await bcrypt.hash(newPassword, 10);
-    await user.save();
-    res.status(200).json({ message: 'Đổi mật khẩu thành công.' });
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-// API lấy danh sách tất cả giảng viên (cho autocomplete khi bổ sung giảng viên đồng hướng dẫn)
-app.get('/lecturers', authenticateJWT, async (req, res) => {
-  try {
-    const lecturers = await User.find({ role: 'Giảng viên' }).select('username userInfo.fullName');
-    const lecturerList = lecturers.map(lecturer => ({
-      username: lecturer.username,
-      fullName: lecturer.userInfo?.fullName || lecturer.username
-    }));
-    res.status(200).json(lecturerList);
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API CNBM xem thống kê học viên và đề tài thuộc ngành quản lý
-app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
-  try {
-    if (req.user.role !== 'Chủ nhiệm bộ môn') {
-      return res.status(403).json({ message: 'Chỉ CNBM mới có quyền truy cập' });
-    }
-
-    // Lấy thông tin CNBM
-    const head = await User.findById(req.user._id);
-    if (!head || !head.managedMajor) {
-      return res.status(404).json({ message: 'Không tìm thấy thông tin ngành quản lý' });
-    }
-
-    // Lấy danh sách học viên thuộc ngành
-    const students = await User.find({ 
-      role: 'Sinh viên',
-      'studentInfo.major': head.managedMajor 
-    }).select('studentInfo');
-
-    // Lấy danh sách đề tài của các học viên thuộc ngành
-    const studentIds = students.map(student => student.studentInfo?.studentId).filter(Boolean);
-    const topics = await TopicProposal.find({ 
-      studentId: { $in: studentIds } 
-    }).sort({ submittedAt: -1 });
-
-    // Tạo map để ghép thông tin
-    const topicsByStudent = {};
-    topics.forEach(topic => {
-      if (!topicsByStudent[topic.studentId]) {
-        topicsByStudent[topic.studentId] = [];
-      }
-      topicsByStudent[topic.studentId].push(topic);
-    });
-
-    // Tạo danh sách kết quả
-    const result = students.map(student => ({
-      studentId: student.studentInfo?.studentId,
-      fullName: student.studentInfo?.fullName,
-      major: student.studentInfo?.major,
-      topics: topicsByStudent[student.studentInfo?.studentId] || []
-    }));
-
-    // Thống kê tổng quan
-    const statistics = {
-      totalStudents: students.length,
-      studentsWithTopics: result.filter(s => s.topics.length > 0).length,
-      totalTopics: topics.length,
-      topicsByStatus: {
-        pending: topics.filter(t => t.status === 'pending').length,
-        approved: topics.filter(t => t.status === 'approved').length,
-        rejected: topics.filter(t => t.status === 'rejected').length,
-        waiting_head_approval: topics.filter(t => t.status === 'waiting_head_approval').length,
-        approved_by_head: topics.filter(t => t.status === 'approved_by_head').length
-      }
-    };
-
-    res.status(200).json({
-      major: head.managedMajor,
-      statistics,
-      students: result
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// Khởi động server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
-
-// API cho Admin nhập danh sách giảng viên
-app.post('/admin/upload-lecturers', authenticateJWT, upload.single('excelFile'), async (req, res) => {
-  if (req.user.role !== 'Quản trị viên') {
-    return res.status(403).json({ message: 'Không có quyền truy cập' });
-  }
-
-  const { faculty } = req.body;
-  const file = req.file;
-  if (!faculty || !file) {
-    return res.status(400).json({ message: 'Thiếu thông tin hoặc file' });
-  }
-
-  try {
-    const workbook = new exceljs.Workbook();
-    await workbook.xlsx.readFile(file.path);
-    const worksheet = workbook.getWorksheet(1);
-
-    const lecturers = [];
-    const createdAccounts = [];
-    const errors = [];
-
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) {
-        const stt = row.getCell(1).value?.toString()?.trim();
-        const fullName = row.getCell(2).value?.toString()?.trim();
-        const email = row.getCell(3).value?.toString()?.trim().toLowerCase();
-        const department = row.getCell(4).value?.toString()?.trim() || '';
-        const position = row.getCell(5).value?.toString()?.trim() || '';
-
-        // Bỏ qua nếu thiếu email hoặc họ tên
-        if (!email || !fullName) {
-          errors.push(`Hàng ${rowNumber}: Thiếu email hoặc họ tên`);
-          return;
-        }
-
-        lecturers.push({ stt, fullName, email, department, position });
-      }
-    });
-
-    for (const lecturer of lecturers) {
-      try {
-        const existingUser = await User.findOne({ username: lecturer.email });
-        if (!existingUser) {
-          const hashedPassword = await bcrypt.hash('123', 10);
-          const newUser = new User({
-            username: lecturer.email,
-            password: hashedPassword,
-            role: 'Giảng viên',
-            userInfo: {
-              fullName: lecturer.fullName,
-              email: lecturer.email,
-              department: lecturer.department,
-              position: lecturer.position,
-              faculty: faculty
-            }
-          });
-          await newUser.save();
-          createdAccounts.push(lecturer.email);
-        }
-      } catch (userError) {
-        errors.push(`Lỗi tạo tài khoản cho ${lecturer.email}: ${userError.message}`);
-      }
-    }
-
-    fs.unlink(file.path, (err) => {
-      if (err) console.error('Lỗi xóa file:', err);
-    });
-
-    res.status(201).json({
-      message: `Đã tải lên ${createdAccounts.length} giảng viên cho khoa "${faculty}"`,
-      createdAccounts,
-      errors: errors.length > 0 ? errors : undefined
-    });
-  } catch (error) {
-    if (file && file.path) {
-      fs.unlink(file.path, (err) => {
-        if (err) console.error('Lỗi xóa file:', err);
-      });
-    }
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API lấy danh sách các khoa/ngành (từ giảng viên và CNBM)
-app.get('/faculties', authenticateJWT, async (req, res) => {
-  try {
-    // Lấy faculty từ giảng viên
-    const lecturers = await User.find({ role: 'Giảng viên' }).select('userInfo.faculty');
-    // Lấy managedMajor từ CNBM
-    const heads = await User.find({ role: 'Chủ nhiệm bộ môn' }).select('managedMajor');
-    // Tổng hợp danh sách khoa/ngành
-    const faculties = [
-      ...lecturers.map(l => l.userInfo?.faculty).filter(Boolean),
-      ...heads.map(h => h.managedMajor).filter(Boolean)
-    ];
-    // Loại bỏ trùng lặp
-    const uniqueFaculties = [...new Set(faculties)];
-    res.status(200).json(uniqueFaculties);
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API lấy danh sách giảng viên và CNBM theo khoa/ngành
-app.get('/faculty/:facultyName/members', authenticateJWT, async (req, res) => {
-  try {
-    const facultyName = req.params.facultyName;
-    // Lấy giảng viên
-    const lecturers = await User.find({
-      role: 'Giảng viên',
-      'userInfo.faculty': facultyName
-    }).select('userInfo.fullName userInfo.email userInfo.department userInfo.position');
-    // Lấy CNBM theo managedMajor
-    const heads = await User.find({
-      role: 'Chủ nhiệm bộ môn',
-      managedMajor: facultyName
-    }).select('userInfo.fullName userInfo.email managedMajor');
-    // Gộp kết quả
-    // const result = [
-    //   ...lecturers.map((l, idx) => ({
-    //     stt: idx + 1,
-    //     fullName: l.userInfo.fullName,
-    //     email: l.userInfo.email,
-    //     department: l.userInfo.department,
-    //     position: l.userInfo.position || '',
-    //     role: 'Giảng viên'
-    //   })),
-    //   ...heads.map((h, idx) => ({
-    //     stt: lecturers.length + idx + 1,
-    //     fullName: h.userInfo.fullName,
-    //     email: h.userInfo.email,
-    //     department: h.managedMajor,
-    //     position: 'Chủ nhiệm bộ môn',
-    //     role: 'Chủ nhiệm bộ môn'
-    //   }))
-    // ];
-
-    const result = [
-  ...lecturers.map((l, idx) => ({
-    stt: idx + 1,
-    _id: l._id,  // ✅ Thêm dòng này
-    fullName: l.userInfo.fullName,
-    email: l.userInfo.email,
-    department: l.userInfo.department,
-    position: l.userInfo.position || '',
-    role: 'Giảng viên'
-  })),
-  ...heads.map((h, idx) => ({
-    stt: lecturers.length + idx + 1,
-    _id: h._id,  // ✅ Thêm dòng này
-    fullName: h.userInfo.fullName,
-    email: h.userInfo.email,
-    department: h.managedMajor,
-    position: 'Chủ nhiệm bộ môn',
-    role: 'Chủ nhiệm bộ môn'
-  }))
-];
-    res.status(200).json(result);
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-// Calendar 
-
-// Calendar Schema
-const eventSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String },
-  eventType: { 
-    type: String, 
-    required: true,
-    enum: ['academic', 'thesis_defense', 'meeting', 'deadline', 'holiday', 'exam', 'other']
-  },
-  startDate: { type: Date, required: true },
-  endDate: { type: Date, required: true },
-  isAllDay: { type: Boolean, default: false },
-  location: { type: String },
-  
-  // Quyền truy cập
-  visibility: {
-    type: String,
-    enum: ['public', 'major_only', 'role_only', 'private'],
-    default: 'public'
-  },
-  
-  // Phạm vi áp dụng
-  targetRoles: [{ type: String, enum: ['Sinh viên', 'Giảng viên', 'Quản trị viên', 'Chủ nhiệm bộ môn'] }],
-  targetMajors: [String], // Các ngành được xem sự kiện
-  
-  // Thông tin người tạo
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-  
-  // Liên kết với đề tài (nếu có)
-  relatedTopic: { type: mongoose.Schema.Types.ObjectId, ref: 'TopicProposal' },
-  
-  // Trạng thái
-  status: { type: String, enum: ['active', 'cancelled', 'completed'], default: 'active' },
-  
-  // Reminder
-  reminderMinutes: { type: Number, default: 60 }, // Nhắc nhở trước bao nhiêu phút
-  
-  // Recurring events
-  isRecurring: { type: Boolean, default: false },
-  recurringPattern: {
-    type: { type: String, enum: ['daily', 'weekly', 'monthly', 'yearly'] },
-    interval: { type: Number, default: 1 }, // Mỗi bao nhiêu đơn vị
-    endDate: Date, // Kết thúc lặp lại
-    daysOfWeek: [Number], // 0-6 cho Chủ nhật - Thứ 7
-    dayOfMonth: Number, // Ngày trong tháng
-    month: Number // Tháng trong năm
-  }
-});
-
-const Event = mongoose.model('Event', eventSchema);
-
-// API tạo sự kiện
-app.post('/calendar/events', authenticateJWT, async (req, res) => {
-  try {
-    const {
-      title, description, eventType, startDate, endDate, isAllDay,
-      location, visibility, targetRoles, targetMajors, reminderMinutes,
-      isRecurring, recurringPattern
-    } = req.body;
-
-    // Validation
-    if (!title || !eventType || !startDate || !endDate) {
-      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
-    }
-
-    if (new Date(startDate) > new Date(endDate)) {
-      return res.status(400).json({ message: 'Thời gian bắt đầu không thể sau thời gian kết thúc' });
-    }
-
-    // Kiểm tra quyền tạo sự kiện
-    if (req.user.role === 'Sinh viên' && visibility !== 'private') {
-      return res.status(403).json({ message: 'Sinh viên chỉ có thể tạo sự kiện riêng tư' });
-    }
-
-    const event = new Event({
-      title,
-      description,
-      eventType,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      isAllDay,
-      location,
-      visibility: visibility || 'public',
-      targetRoles: targetRoles || [],
-      targetMajors: targetMajors || [],
-      createdBy: req.user._id,
-      reminderMinutes: reminderMinutes || 60,
-      isRecurring: isRecurring || false,
-      recurringPattern: isRecurring ? recurringPattern : undefined
-    });
-
-    await event.save();
-
-    const populatedEvent = await Event.findById(event._id)
-      .populate('createdBy', 'username userInfo.fullName')
-      .populate('relatedTopic', 'topicTitle studentName');
-
-    res.status(201).json({
-      message: 'Tạo sự kiện thành công',
-      event: populatedEvent
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API lấy danh sách sự kiện (với filter)
-app.get('/calendar/events', authenticateJWT, async (req, res) => {
-  try {
-    const { startDate, endDate, eventType, major } = req.query;
-    const user = await User.findById(req.user._id);
-    
-    // Build filter
-    let filter = {
-      status: 'active'
-    };
-
-    // Lọc theo thời gian
-    if (startDate || endDate) {
-      filter.$or = [];
-      if (startDate && endDate) {
-        filter.$or.push({
-          $and: [
-            { startDate: { $lte: new Date(endDate) } },
-            { endDate: { $gte: new Date(startDate) } }
-          ]
-        });
-      } else if (startDate) {
-        filter.endDate = { $gte: new Date(startDate) };
-      } else if (endDate) {
-        filter.startDate = { $lte: new Date(endDate) };
-      }
-    }
-
-    // Lọc theo loại sự kiện
-    if (eventType) {
-      filter.eventType = eventType;
-    }
-
-    // Lọc theo quyền truy cập
-    const accessFilter = {
-      $or: [
-        { visibility: 'public' },
-        { createdBy: req.user._id }, // Sự kiện do mình tạo
-        { 
-          visibility: 'role_only',
-          targetRoles: { $in: [req.user.role] }
-        }
-      ]
-    };
-
-    // Thêm filter theo ngành cho sinh viên và CNBM
-    if (req.user.role === 'Sinh viên' && user.studentInfo?.major) {
-      accessFilter.$or.push({
-        visibility: 'major_only',
-        targetMajors: { $in: [user.studentInfo.major] }
-      });
-    } else if (req.user.role === 'Chủ nhiệm bộ môn' && user.managedMajor) {
-      accessFilter.$or.push({
-        visibility: 'major_only',
-        targetMajors: { $in: [user.managedMajor] }
-      });
-    }
-
-    // Combine filters
-    const finalFilter = {
-      $and: [filter, accessFilter]
-    };
-
-    const events = await Event.find(finalFilter)
-      .populate('createdBy', 'username userInfo.fullName studentInfo.fullName')
-      .populate('relatedTopic', 'topicTitle studentName')
-      .sort({ startDate: 1 });
-
-    res.status(200).json(events);
-
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API cập nhật sự kiện
-app.put('/calendar/events/:id', authenticateJWT, async (req, res) => {
-  try {
-    const eventId = req.params.id;
-    const event = await Event.findById(eventId);
-
-    if (!event) {
-      return res.status(404).json({ message: 'Không tìm thấy sự kiện' });
-    }
-
-    // Kiểm tra quyền chỉnh sửa
-    const canEdit = (
-      event.createdBy.equals(req.user._id) || 
-      req.user.role === 'Quản trị viên'
-    );
-
-    if (!canEdit) {
-      return res.status(403).json({ message: 'Không có quyền chỉnh sửa sự kiện này' });
-    }
-
-    const {
-      title, description, eventType, startDate, endDate, isAllDay,
-      location, visibility, targetRoles, targetMajors, status,
-      reminderMinutes
-    } = req.body;
-
-    // Validation
-    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-      return res.status(400).json({ message: 'Thời gian bắt đầu không thể sau thời gian kết thúc' });
-    }
-
-    // Update fields
-    if (title) event.title = title;
-    if (description !== undefined) event.description = description;
-    if (eventType) event.eventType = eventType;
-    if (startDate) event.startDate = new Date(startDate);
-    if (endDate) event.endDate = new Date(endDate);
-    if (isAllDay !== undefined) event.isAllDay = isAllDay;
-    if (location !== undefined) event.location = location;
-    if (visibility) event.visibility = visibility;
-    if (targetRoles) event.targetRoles = targetRoles;
-    if (targetMajors) event.targetMajors = targetMajors;
-    if (status) event.status = status;
-    if (reminderMinutes !== undefined) event.reminderMinutes = reminderMinutes;
-    
-    event.updatedAt = new Date();
-
-    await event.save();
-
-    const updatedEvent = await Event.findById(eventId)
-      .populate('createdBy', 'username userInfo.fullName')
-      .populate('relatedTopic', 'topicTitle studentName');
-
-    res.status(200).json({
-      message: 'Cập nhật sự kiện thành công',
-      event: updatedEvent
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API xóa sự kiện
-app.delete('/calendar/events/:id', authenticateJWT, async (req, res) => {
-  try {
-    const eventId = req.params.id;
-    const event = await Event.findById(eventId);
-
-    if (!event) {
-      return res.status(404).json({ message: 'Không tìm thấy sự kiện' });
-    }
-
-    // Kiểm tra quyền xóa
-    const canDelete = (
-      event.createdBy.equals(req.user._id) || 
-      req.user.role === 'Quản trị viên'
-    );
-
-    if (!canDelete) {
-      return res.status(403).json({ message: 'Không có quyền xóa sự kiện này' });
-    }
-
-    await Event.findByIdAndDelete(eventId);
-
-    res.status(200).json({ message: 'Xóa sự kiện thành công' });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API lấy thống kê sự kiện (cho admin/CNBM)
-app.get('/calendar/statistics', authenticateJWT, async (req, res) => {
-  try {
-    if (!['Quản trị viên', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Không có quyền truy cập' });
     }
 
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const { batchId } = req.params;
+    const deleteAccounts = req.query.deleteAccounts === 'true' || req.query.deleteAccounts === true;
 
-    const endOfMonth = new Date();
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-    endOfMonth.setDate(0);
-    endOfMonth.setHours(23, 59, 59, 999);
+    const batch = await StudentBatch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ message: 'Không tìm thấy đợt học viên' });
+    }
 
-    const statistics = await Event.aggregate([
-      {
-        $match: {
-          startDate: { $gte: startOfMonth, $lte: endOfMonth }
-        }
-      },
-      {
-        $group: {
-          _id: '$eventType',
-          count: { $sum: 1 }
-        }
+    let deletedAccountsCount = 0;
+    if (deleteAccounts && Array.isArray(batch.students) && batch.students.length > 0) {
+      const studentIds = batch.students.map(s => s.studentId).filter(Boolean);
+      if (studentIds.length > 0) {
+        const deleteResult = await User.deleteMany({ username: { $in: studentIds }, role: 'Sinh viên' });
+        deletedAccountsCount = deleteResult.deletedCount || 0;
       }
-    ]);
+    }
 
-    const totalEvents = await Event.countDocuments({
-      startDate: { $gte: startOfMonth, $lte: endOfMonth }
-    });
-
-    const upcomingEvents = await Event.countDocuments({
-      startDate: { $gte: new Date() },
-      status: 'active'
-    });
+    await StudentBatch.findByIdAndDelete(batchId);
 
     res.status(200).json({
-      totalEventsThisMonth: totalEvents,
-      upcomingEvents,
-      eventsByType: statistics
+      message: deleteAccounts
+        ? `Đã xóa đợt và ${deletedAccountsCount} tài khoản học viên liên quan.`
+        : 'Đã xóa đợt học viên (không xóa tài khoản).',
+      deletedAccounts: deletedAccountsCount
     });
-
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-});
-
-// API tự động tạo sự kiện từ deadline đề tài
-app.post('/calendar/auto-create-topic-events', authenticateJWT, async (req, res) => {
-  try {
-    if (req.user.role !== 'Quản trị viên') {
-      return res.status(403).json({ message: 'Chỉ admin mới có quyền tạo sự kiện tự động' });
-    }
-
-    const { title, deadlineDate, targetMajors, reminderDays = 7 } = req.body;
-
-    if (!title || !deadlineDate) {
-      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
-    }
-
-    const event = new Event({
-      title: `Hạn nộp: ${title}`,
-      description: `Hạn cuối nộp ${title}`,
-      eventType: 'deadline',
-      startDate: new Date(deadlineDate),
-      endDate: new Date(deadlineDate),
-      isAllDay: true,
-      visibility: 'major_only',
-      targetMajors: targetMajors || [],
-      targetRoles: ['Sinh viên'],
-      createdBy: req.user._id,
-      reminderMinutes: reminderDays * 24 * 60 // Convert days to minutes
-    });
-
-    await event.save();
-
-    res.status(201).json({
-      message: 'Tạo sự kiện deadline thành công',
-      event
-    });
-
-  } catch (error) {
+    console.error('Error deleting batch:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
@@ -1825,17 +928,259 @@ app.post('/admin/faculty/:facultyName/add-lecturer', authenticateJWT, async (req
 //   res.json({ message: 'Đã cập nhật thông tin giảng viên', lecturer: user.userInfo });
 // });
 // 2.
+// app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
+//   if (req.user.role !== 'Quản trị viên') 
+//     return res.status(403).json({ message: 'Không có quyền truy cập' });
+  
+//   const { lecturerId } = req.params;
+//   const { fullName, department, position, faculty, email, role, managedMajor } = req.body;
+  
+//   try {
+//     const user = await User.findById(lecturerId);
+//     if (!user || !['Giảng viên', 'Lãnh đạo bộ môn'].includes(user.role)) 
+//       return res.status(404).json({ message: 'Không tìm thấy giảng viên/CNBM' });
+
+//     // 1. Xử lý thay đổi email (username)
+//     if (email && email !== user.username) {
+//       const existingUser = await User.findOne({ username: email });
+//       if (existingUser) {
+//         return res.status(400).json({ message: 'Email đã tồn tại trong hệ thống' });
+//       }
+//       user.username = email;
+//       if (user.userInfo) user.userInfo.email = email;
+//     }
+
+//     // 2. Xử lý thay đổi vai trò
+//     if (role && role !== user.role) {
+//       // Giảng viên → CNBM
+//       if (user.role === 'Giảng viên' && role === 'Lãnh đạo bộ môn') {
+//         // if (!managedMajor) {
+//         //   return res.status(400).json({ 
+//         //     message: 'Phải chỉ định ngành quản lý khi chuyển sang CNBM' 
+//         //   });
+//         // }
+        
+//         // Kiểm tra ngành đã có CNBM chưa
+//         const existingHead = await User.findOne({
+//           role: 'Lãnh đạo bộ môn',
+//           managedMajor: managedMajor,
+//           _id: { $ne: lecturerId }
+//         });
+        
+//         if (existingHead) {
+//           return res.status(400).json({
+//             message: `Ngành "${managedMajor}" đã có CNBM khác`
+//           });
+//         }
+        
+//         user.role = 'Lãnh đạo bộ môn';
+//         user.managedMajor = managedMajor;
+//       } 
+//       // CNBM → Giảng viên
+//       else if (user.role === 'Lãnh đạo bộ môn' && role === 'Giảng viên') {
+//         // Kiểm tra có đề tài đang chờ duyệt không
+//         const pendingTopics = await TopicProposal.countDocuments({
+//           headId: user._id,
+//           status: 'waiting_head_approval'
+//         });
+        
+//         if (pendingTopics > 0) {
+//           return res.status(400).json({
+//             message: `Không thể chuyển về Giảng viên vì còn ${pendingTopics} đề tài đang chờ duyệt`
+//           });
+//         }
+        
+//         user.role = 'Giảng viên';
+//         user.managedMajor = undefined;
+        
+//         // Chuyển faculty từ managedMajor sang userInfo.faculty
+//         if (!faculty && user.managedMajor) {
+//           user.userInfo = user.userInfo || {};
+//           user.userInfo.faculty = user.managedMajor;
+//         }
+//       }
+//       else {
+//         return res.status(400).json({ 
+//           message: 'Chỉ hỗ trợ chuyển đổi giữa Giảng viên và CNBM' 
+//         });
+//       }
+//     }
+
+//     // 3. Cập nhật các thông tin khác
+//     user.userInfo = user.userInfo || {};
+//     if (fullName) user.userInfo.fullName = fullName;
+//     if (department) user.userInfo.department = department;
+//     if (position) user.userInfo.position = position;
+//     if (faculty && user.role === 'Giảng viên') user.userInfo.faculty = faculty;
+    
+//     // Cập nhật managedMajor cho CNBM (nếu không đổi role nhưng đổi ngành)
+//     if (user.role === 'Lãnh đạo bộ môn' && managedMajor && managedMajor !== user.managedMajor) {
+//       const existingHead = await User.findOne({
+//         role: 'Lãnh đạo bộ môn',
+//         managedMajor: managedMajor,
+//         _id: { $ne: lecturerId }
+//       });
+      
+//       if (existingHead) {
+//         return res.status(400).json({
+//           message: `Ngành "${managedMajor}" đã có CNBM khác`
+//         });
+//       }
+//       user.managedMajor = managedMajor;
+//     }
+
+//     await user.save();
+    
+//     res.json({ 
+//       message: 'Đã cập nhật thông tin thành công', 
+//       user: {
+//         id: user._id,
+//         username: user.username,
+//         role: user.role,
+//         userInfo: user.userInfo,
+//         managedMajor: user.managedMajor
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Error updating lecturer:', error);
+//     res.status(500).json({ message: 'Lỗi server', error: error.message });
+//   }
+// });
+
+// app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
+//   if (req.user.role !== 'Quản trị viên')
+//     return res.status(403).json({ message: 'Không có quyền truy cập' });
+
+//   const { lecturerId } = req.params;
+//   const { fullName, department, position, faculty, email, role, managedDepartment } = req.body;
+
+//   try {
+//     const user = await User.findById(lecturerId);
+//     if (!user || !['Giảng viên', 'Lãnh đạo bộ môn'].includes(user.role))
+//       return res.status(404).json({ message: 'Không tìm thấy giảng viên/LĐBM' });
+
+//     // 1. Xử lý thay đổi email (username)
+//     if (email && email !== user.username) {
+//       const existingUser = await User.findOne({ username: email });
+//       if (existingUser) {
+//         return res.status(400).json({ message: 'Email đã tồn tại trong hệ thống' });
+//       }
+//       user.username = email;
+//       if (user.userInfo) user.userInfo.email = email;
+//     }
+
+//     // 2. Xử lý thay đổi vai trò
+//     if (role && role !== user.role) {
+//       // Giảng viên → LĐBM
+//       if (user.role === 'Giảng viên' && role === 'Lãnh đạo bộ môn') {
+//         if (!managedDepartment) {
+//           return res.status(400).json({
+//             message: 'Phải chỉ định bộ môn/phòng thí nghiệm quản lý khi chuyển sang LĐBM'
+//           });
+//         }
+
+//         // Kiểm tra bộ môn đã có LĐBM chưa
+//         const existingHead = await User.findOne({
+//           role: 'Lãnh đạo bộ môn',
+//           managedDepartment: managedDepartment,
+//           _id: { $ne: lecturerId }
+//         });
+
+//         if (existingHead) {
+//           return res.status(400).json({
+//             message: `Bộ môn/Phòng thí nghiệm "${managedDepartment}" đã có LĐBM khác`
+//           });
+//         }
+
+//         user.role = 'Lãnh đạo bộ môn';
+//         user.managedDepartment = managedDepartment;
+//         // XÓA managedMajor nếu có
+//         user.managedMajor = undefined;
+//       }
+//       // LĐBM → Giảng viên
+//       else if (user.role === 'Lãnh đạo bộ môn' && role === 'Giảng viên') {
+//         // Kiểm tra có đề tài đang chờ duyệt không
+//         const pendingTopics = await TopicProposal.countDocuments({
+//           headId: user._id,
+//           status: 'waiting_head_approval'
+//         });
+
+//         if (pendingTopics > 0) {
+//           return res.status(400).json({
+//             message: `Không thể chuyển về Giảng viên vì còn ${pendingTopics} đề tài đang chờ duyệt`
+//           });
+//         }
+
+//         user.role = 'Giảng viên';
+//         user.managedDepartment = undefined;
+//         user.managedMajor = undefined;
+        
+//         // Giữ lại department trong userInfo
+//         if (!department && user.managedDepartment) {
+//           user.userInfo = user.userInfo || {};
+//           user.userInfo.department = user.managedDepartment;
+//         }
+//       }
+//       else {
+//         return res.status(400).json({
+//           message: 'Chỉ hỗ trợ chuyển đổi giữa Giảng viên và LĐBM'
+//         });
+//       }
+//     }
+
+//     // 3. Cập nhật các thông tin khác
+//     user.userInfo = user.userInfo || {};
+//     if (fullName) user.userInfo.fullName = fullName;
+//     if (department) user.userInfo.department = department;
+//     if (position) user.userInfo.position = position;
+//     if (faculty && user.role === 'Giảng viên') user.userInfo.faculty = faculty;
+
+//     // Cập nhật managedDepartment cho LĐBM (nếu không đổi role nhưng đổi bộ môn)
+//     if (user.role === 'Lãnh đạo bộ môn' && managedDepartment && managedDepartment !== user.managedDepartment) {
+//       const existingHead = await User.findOne({
+//         role: 'Lãnh đạo bộ môn',
+//         managedDepartment: managedDepartment,
+//         _id: { $ne: lecturerId }
+//       });
+
+//       if (existingHead) {
+//         return res.status(400).json({
+//           message: `Bộ môn/Phòng thí nghiệm "${managedDepartment}" đã có LĐBM khác`
+//         });
+//       }
+
+//       user.managedDepartment = managedDepartment;
+//     }
+
+//     await user.save();
+
+//     res.json({
+//       message: 'Đã cập nhật thông tin thành công',
+//       user: {
+//         id: user._id,
+//         username: user.username,
+//         role: user.role,
+//         userInfo: user.userInfo,
+//         managedDepartment: user.managedDepartment
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Error updating lecturer:', error);
+//     res.status(500).json({ message: 'Lỗi server', error: error.message });
+//   }
+// });
+
 app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
-  if (req.user.role !== 'Quản trị viên') 
+  if (req.user.role !== 'Quản trị viên')
     return res.status(403).json({ message: 'Không có quyền truy cập' });
-  
+
   const { lecturerId } = req.params;
-  const { fullName, department, position, faculty, email, role, managedMajor } = req.body;
-  
+  const { fullName, department, position, faculty, email, role, managedDepartment } = req.body;
+
   try {
     const user = await User.findById(lecturerId);
-    if (!user || !['Giảng viên', 'Chủ nhiệm bộ môn'].includes(user.role)) 
-      return res.status(404).json({ message: 'Không tìm thấy giảng viên/CNBM' });
+    if (!user || !['Giảng viên', 'Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(user.role))
+      return res.status(404).json({ message: 'Không tìm thấy giảng viên/LĐBM' });
 
     // 1. Xử lý thay đổi email (username)
     if (email && email !== user.username) {
@@ -1848,94 +1193,120 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
     }
 
     // 2. Xử lý thay đổi vai trò
-    if (role && role !== user.role) {
-      // Giảng viên → CNBM
-      if (user.role === 'Giảng viên' && role === 'Chủ nhiệm bộ môn') {
-        if (!managedMajor) {
-          return res.status(400).json({ 
-            message: 'Phải chỉ định ngành quản lý khi chuyển sang CNBM' 
+    if (role && role !== user.role && user.role !== 'Chủ nhiệm bộ môn') {
+      // Giảng viên → LĐBM
+      if (user.role === 'Giảng viên' && role === 'Lãnh đạo bộ môn') {
+        const deptToManage = managedDepartment || department;
+        
+        if (!deptToManage) {
+          return res.status(400).json({
+            message: 'Phải chỉ định bộ môn/phòng thí nghiệm quản lý khi chuyển sang LĐBM'
           });
         }
-        
-        // Kiểm tra ngành đã có CNBM chưa
+
+        // Kiểm tra bộ môn đã có LĐBM chưa
         const existingHead = await User.findOne({
-          role: 'Chủ nhiệm bộ môn',
-          managedMajor: managedMajor,
+          role: { $in: ['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'] },
+          managedDepartment: deptToManage,
           _id: { $ne: lecturerId }
         });
-        
+
         if (existingHead) {
           return res.status(400).json({
-            message: `Ngành "${managedMajor}" đã có CNBM khác`
+            message: `Bộ môn/Phòng thí nghiệm "${deptToManage}" đã có LĐBM khác: ${existingHead.userInfo?.fullName}`
           });
         }
+
+        // Chuyển sang LĐBM
+        user.role = 'Lãnh đạo bộ môn';
+        user.managedDepartment = deptToManage;
         
-        user.role = 'Chủ nhiệm bộ môn';
-        user.managedMajor = managedMajor;
-      } 
-      // CNBM → Giảng viên
-      else if (user.role === 'Chủ nhiệm bộ môn' && role === 'Giảng viên') {
+        // GIỮ LẠI thông tin userInfo
+        user.userInfo = user.userInfo || {};
+        user.userInfo.department = deptToManage;
+        if (faculty) user.userInfo.faculty = faculty;
+        
+        console.log(`✅ Chuyển GV → LĐBM: managedDepartment = ${deptToManage}`);
+      }
+      // LĐBM → Giảng viên
+      else if (user.role === 'Lãnh đạo bộ môn' && role === 'Giảng viên') {
         // Kiểm tra có đề tài đang chờ duyệt không
         const pendingTopics = await TopicProposal.countDocuments({
           headId: user._id,
           status: 'waiting_head_approval'
         });
-        
+
         if (pendingTopics > 0) {
           return res.status(400).json({
             message: `Không thể chuyển về Giảng viên vì còn ${pendingTopics} đề tài đang chờ duyệt`
           });
         }
-        
+
+        // Lưu lại thông tin bộ môn trước khi xóa managedDepartment
+        const oldDepartment = user.managedDepartment;
+
         user.role = 'Giảng viên';
+        user.managedDepartment = undefined;
         user.managedMajor = undefined;
         
-        // Chuyển faculty từ managedMajor sang userInfo.faculty
-        if (!faculty && user.managedMajor) {
-          user.userInfo = user.userInfo || {};
-          user.userInfo.faculty = user.managedMajor;
+        // GIỮ LẠI thông tin trong userInfo
+        user.userInfo = user.userInfo || {};
+        if (!user.userInfo.department && oldDepartment) {
+          user.userInfo.department = oldDepartment;
         }
+        if (department) user.userInfo.department = department;
+        if (faculty) user.userInfo.faculty = faculty;
+        
+        console.log(`✅ Chuyển LĐBM → GV: Giữ department = ${user.userInfo.department}`);
       }
       else {
-        return res.status(400).json({ 
-          message: 'Chỉ hỗ trợ chuyển đổi giữa Giảng viên và CNBM' 
+        return res.status(400).json({
+          message: 'Chỉ hỗ trợ chuyển đổi giữa Giảng viên và LĐBM'
         });
       }
     }
 
-    // 3. Cập nhật các thông tin khác
+    // 3. Cập nhật các thông tin khác (khi KHÔNG đổi role)
     user.userInfo = user.userInfo || {};
     if (fullName) user.userInfo.fullName = fullName;
-    if (department) user.userInfo.department = department;
     if (position) user.userInfo.position = position;
-    if (faculty && user.role === 'Giảng viên') user.userInfo.faculty = faculty;
     
-    // Cập nhật managedMajor cho CNBM (nếu không đổi role nhưng đổi ngành)
-    if (user.role === 'Chủ nhiệm bộ môn' && managedMajor && managedMajor !== user.managedMajor) {
-      const existingHead = await User.findOne({
-        role: 'Chủ nhiệm bộ môn',
-        managedMajor: managedMajor,
-        _id: { $ne: lecturerId }
-      });
-      
-      if (existingHead) {
-        return res.status(400).json({
-          message: `Ngành "${managedMajor}" đã có CNBM khác`
+    // Cập nhật department và faculty tùy theo role
+    if (user.role === 'Giảng viên') {
+      if (department) user.userInfo.department = department;
+      if (faculty) user.userInfo.faculty = faculty;
+    } else if (user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') {
+      // Với LĐBM: đồng bộ department với managedDepartment
+      if (managedDepartment && managedDepartment !== user.managedDepartment) {
+        // Kiểm tra trùng
+        const existingHead = await User.findOne({
+          role: { $in: ['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'] },
+          managedDepartment: managedDepartment,
+          _id: { $ne: lecturerId }
         });
+
+        if (existingHead) {
+          return res.status(400).json({
+            message: `Bộ môn/Phòng thí nghiệm "${managedDepartment}" đã có LĐBM khác`
+          });
+        }
+
+        user.managedDepartment = managedDepartment;
+        user.userInfo.department = managedDepartment;
       }
-      user.managedMajor = managedMajor;
+      if (faculty) user.userInfo.faculty = faculty;
     }
 
     await user.save();
-    
-    res.json({ 
-      message: 'Đã cập nhật thông tin thành công', 
+
+    res.json({
+      message: 'Đã cập nhật thông tin thành công',
       user: {
         id: user._id,
         username: user.username,
         role: user.role,
         userInfo: user.userInfo,
-        managedMajor: user.managedMajor
+        managedDepartment: user.managedDepartment
       }
     });
   } catch (error) {
@@ -1943,7 +1314,6 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
-
 
 // Xóa giảng viên
 app.delete('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
@@ -1956,29 +1326,131 @@ app.delete('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
 });
 
 // Thêm CNBM
+// app.post('/admin/faculty/:facultyName/add-head', authenticateJWT, async (req, res) => {
+//   if (req.user.role !== 'Quản trị viên') return res.status(403).json({ message: 'Không có quyền truy cập' });
+//   const { facultyName } = req.params;
+//   const { email, fullName } = req.body;
+//   if (!email || !fullName) return res.status(400).json({ message: 'Thiếu thông tin Lãnh đạo bộ môn' });
+
+//   let user = await User.findOne({ username: email });
+//   if (user) return res.status(400).json({ message: 'Email đã tồn tại' });
+
+//   // Kiểm tra đã có lãnh đạo bộ môn (bao gồm bản ghi legacy Chủ nhiệm bộ môn)
+//   const existingHead = await User.findOne({
+//     $or: [
+//       { role: 'Lãnh đạo bộ môn', managedDepartment: facultyName },
+//       // { role: 'Chủ nhiệm bộ môn', managedMajor: facultyName }
+//     ]
+//   });
+//   if (existingHead) return res.status(400).json({ message: 'Khoa/Bộ môn đã có Lãnh đạo bộ môn' });
+
+//   const hashedPassword = await bcrypt.hash('123', 10);
+//   user = new User({
+//     username: email,
+//     password: hashedPassword,
+//     role: 'Lãnh đạo bộ môn',
+//     userInfo: { fullName, email, faculty: facultyName },
+//     managedDepartment: facultyName
+//   });
+//   await user.save();
+//   res.json({ message: 'Đã thêm Lãnh đạo bộ môn', head: user.userInfo });
+// });
+
+// API thêm LĐBM (FIXED VERSION)
+// app.post('/admin/faculty/:facultyName/add-head', authenticateJWT, async (req, res) => {
+//   if (req.user.role !== 'Quản trị viên') 
+//     return res.status(403).json({ message: 'Không có quyền truy cập' });
+
+//   const { facultyName } = req.params;
+//   const { email, fullName, department } = req.body;
+
+//   if (!email || !fullName || !department) 
+//     return res.status(400).json({ message: 'Thiếu thông tin Lãnh đạo bộ môn (cần email, họ tên và bộ môn)' });
+
+//   let user = await User.findOne({ username: email });
+//   if (user) return res.status(400).json({ message: 'Email đã tồn tại' });
+
+//   // Kiểm tra đã có lãnh đạo bộ môn cho department này chưa
+//   const existingHead = await User.findOne({
+//     role: 'Lãnh đạo bộ môn',
+//     managedDepartment: department
+//   });
+
+//   if (existingHead) 
+//     return res.status(400).json({ 
+//       message: `Bộ môn/Phòng thí nghiệm "${department}" đã có Lãnh đạo bộ môn` 
+//     });
+
+//   const hashedPassword = await bcrypt.hash('123', 10);
+//   user = new User({
+//     username: email,
+//     password: hashedPassword,
+//     role: 'Lãnh đạo bộ môn',
+//     userInfo: { 
+//       fullName, 
+//       email, 
+//       faculty: facultyName,
+//       department: department 
+//     },
+//     managedDepartment: department  // QUAN TRỌNG: Lưu vào managedDepartment
+//   });
+
+//   await user.save();
+//   res.json({ message: 'Đã thêm Lãnh đạo bộ môn', head: user.userInfo });
+// });
+
 app.post('/admin/faculty/:facultyName/add-head', authenticateJWT, async (req, res) => {
-  if (req.user.role !== 'Quản trị viên') return res.status(403).json({ message: 'Không có quyền truy cập' });
+  if (req.user.role !== 'Quản trị viên') 
+    return res.status(403).json({ message: 'Không có quyền truy cập' });
+
   const { facultyName } = req.params;
-  const { email, fullName } = req.body;
-  if (!email || !fullName) return res.status(400).json({ message: 'Thiếu thông tin CNBM' });
+  const { email, fullName, department } = req.body;
 
-  let user = await User.findOne({ username: email });
-  if (user) return res.status(400).json({ message: 'Email đã tồn tại' });
+  if (!email || !fullName || !department) 
+    return res.status(400).json({ 
+      message: 'Thiếu thông tin Lãnh đạo bộ môn (cần email, họ tên và bộ môn/phòng thí nghiệm)' 
+    });
 
-  // Kiểm tra ngành đã có CNBM chưa
-  const existingHead = await User.findOne({ role: 'Chủ nhiệm bộ môn', managedMajor: facultyName });
-  if (existingHead) return res.status(400).json({ message: 'Ngành đã có CNBM' });
+  try {
+    let user = await User.findOne({ username: email });
+    if (user) return res.status(400).json({ message: 'Email đã tồn tại' });
 
-  const hashedPassword = await bcrypt.hash('123', 10);
-  user = new User({
-    username: email,
-    password: hashedPassword,
-    role: 'Chủ nhiệm bộ môn',
-    userInfo: { fullName, email },
-    managedMajor: facultyName
-  });
-  await user.save();
-  res.json({ message: 'Đã thêm CNBM', head: user.userInfo });
+    // Kiểm tra đã có lãnh đạo bộ môn cho department này chưa
+    const existingHead = await User.findOne({
+      role: { $in: ['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'] },
+      managedDepartment: department
+    });
+
+    if (existingHead) 
+      return res.status(400).json({ 
+        message: `Bộ môn/Phòng thí nghiệm "${department}" đã có Lãnh đạo bộ môn: ${existingHead.userInfo?.fullName}` 
+      });
+
+    const hashedPassword = await bcrypt.hash('123', 10);
+    user = new User({
+      username: email,
+      password: hashedPassword,
+      role: 'Lãnh đạo bộ môn',
+      userInfo: { 
+        fullName, 
+        email, 
+        faculty: facultyName,
+        department: department 
+      },
+      managedDepartment: department  // QUAN TRỌNG: Lưu vào managedDepartment
+    });
+
+    await user.save();
+    console.log(`✅ Tạo LĐBM mới: ${fullName}, managedDepartment = ${department}`);
+    
+    res.json({ 
+      message: 'Đã thêm Lãnh đạo bộ môn', 
+      head: user.userInfo 
+    });
+  } catch (error) {
+    console.error('Error adding head:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
 });
 
 // Sửa thông tin CNBM
@@ -2008,48 +1480,946 @@ app.delete('/admin/head/:headId', authenticateJWT, async (req, res) => {
   if (req.user.role !== 'Quản trị viên') return res.status(403).json({ message: 'Không có quyền truy cập' });
   const { headId } = req.params;
   const user = await User.findById(headId);
-  if (!user || user.role !== 'Chủ nhiệm bộ môn') return res.status(404).json({ message: 'Không tìm thấy CNBM' });
+  if (!user || user.role !== 'Lãnh đạo bộ môn') return res.status(404).json({ message: 'Không tìm thấy LĐBM' });
   await User.findByIdAndDelete(headId);
-  res.json({ message: 'Đã xóa CNBM khỏi hệ thống' });
+  res.json({ message: 'Đã xóa LĐBM khỏi hệ thống' });
 });
 
-// API xóa toàn bộ đợt học viên (cho admin) - có thể xóa cả tài khoản sinh viên
-app.delete('/admin/batch/:batchId', authenticateJWT, async (req, res) => {
+// API giảng viên phê duyệt/từ chối đề tài (chỉ GV hướng dẫn 1 có quyền)
+app.put('/supervisor/review-topic/:id', authenticateJWT, async (req, res) => {
   try {
-    if (req.user.role !== 'Quản trị viên') {
-      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    if (req.user.role !== 'Giảng viên') {
+      return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền phê duyệt' });
     }
 
-    const { batchId } = req.params;
-    const deleteAccounts = req.query.deleteAccounts === 'true' || req.query.deleteAccounts === true;
+    const { status, comments, topicTitle, content, secondarySupervisor } = req.body;
+    const proposalId = req.params.id;
 
-    const batch = await StudentBatch.findById(batchId);
-    if (!batch) {
-      return res.status(404).json({ message: 'Không tìm thấy đợt học viên' });
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
     }
 
-    let deletedAccountsCount = 0;
-    if (deleteAccounts && Array.isArray(batch.students) && batch.students.length > 0) {
-      const studentIds = batch.students.map(s => s.studentId).filter(Boolean);
-      if (studentIds.length > 0) {
-        const deleteResult = await User.deleteMany({ username: { $in: studentIds }, role: 'Sinh viên' });
-        deletedAccountsCount = deleteResult.deletedCount || 0;
+    const proposal = await TopicProposal.findById(proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề xuất' });
+    }
+
+    // Chỉ GV hướng dẫn 1 có quyền phê duyệt
+    if (proposal.primarySupervisor !== req.user.username) {
+      return res.status(403).json({ message: 'Chỉ giảng viên hướng dẫn 1 mới có quyền phê duyệt đề xuất này' });
+    }
+
+    // Cập nhật thông tin
+    proposal.status = status;
+    proposal.supervisorComments = comments;
+    proposal.reviewedAt = new Date();
+    proposal.reviewedBy = req.user._id;
+
+    if (topicTitle) proposal.topicTitle = topicTitle;
+    if (content) proposal.content = content;
+    if (secondarySupervisor !== undefined) proposal.secondarySupervisor = secondarySupervisor;
+
+    if (status === 'approved') {
+      // Tìm Lãnh đạo bộ môn theo bộ môn/phòng thí nghiệm của giảng viên hướng dẫn 1
+      const primary = await User.findOne({ username: proposal.primarySupervisor });
+      const lecturerDept = primary?.userInfo?.department;
+      if (lecturerDept) {
+        const head = await User.findOne({
+          role: 'Lãnh đạo bộ môn',
+          managedDepartment: lecturerDept
+        });
+        if (head) {
+          proposal.status = 'waiting_head_approval';
+          proposal.headId = head._id;
+        } else {
+          return res.status(400).json({ message: 'Không tìm thấy lãnh đạo bộ môn phù hợp với bộ môn/phòng thí nghiệm của giảng viên hướng dẫn 1.' });
+        }
+      } else {
+        return res.status(400).json({ message: 'Giảng viên hướng dẫn 1 chưa có thông tin bộ môn/phòng thí nghiệm.' });
       }
     }
 
-    await StudentBatch.findByIdAndDelete(batchId);
+    await proposal.save();
 
-    res.status(200).json({
-      message: deleteAccounts
-        ? `Đã xóa đợt và ${deletedAccountsCount} tài khoản học viên liên quan.`
-        : 'Đã xóa đợt học viên (không xóa tài khoản).',
-      deletedAccounts: deletedAccountsCount
-    });
+    const studentUser = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
+    if (studentUser) {
+      let notifyMsg = '';
+      if (status === 'approved') {
+        notifyMsg = `Đề tài "${proposal.topicTitle}" của bạn đã được giảng viên phê duyệt.`;
+      } else if (status === 'rejected') {
+        notifyMsg = `Đề tài "${proposal.topicTitle}" của bạn đã bị từ chối.`;
+      }
+      studentUser.notifications = studentUser.notifications || [];
+      studentUser.notifications.push({ message: notifyMsg, type: 'topic', createdAt: new Date(), read: false });
+      await studentUser.save();
+    }
+
+    res.status(200).json({ message: `Đề tài đã được ${status === 'approved' ? 'phê duyệt' : 'từ chối'}`, proposal });
   } catch (error) {
-    console.error('Error deleting batch:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
+
+// API Lãnh đạo bộ môn xem các đề tài chờ duyệt
+app.get('/head/topic-proposals', authenticateJWT, async (req, res) => {
+  if (!['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Chỉ Lãnh đạo bộ môn mới có quyền truy cập' });
+  }
+  const proposals = await TopicProposal.find({ headId: req.user._id, status: 'waiting_head_approval' });
+  res.status(200).json(proposals);
+});
+
+// API Lãnh đạo bộ môn duyệt hoặc trả lại đề tài
+app.put('/head/review-topic/:id', authenticateJWT, async (req, res) => {
+  if (!['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Chỉ Lãnh đạo bộ môn mới có quyền duyệt' });
+  }
+  const { status, comments } = req.body;
+  if (!['approved_by_head', 'returned'].includes(status)) {
+    return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
+  }
+  const proposal = await TopicProposal.findById(req.params.id);
+  const studentUser = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
+  if (status === 'approved_by_head') {
+    proposal.status = 'approved_by_head';
+    proposal.headComments = comments;
+    await proposal.save();
+    if (studentUser) {
+      studentUser.notifications = studentUser.notifications || [];
+      studentUser.notifications.push({ message: `Đề tài "${proposal.topicTitle}" của bạn đã được Lãnh đạo bộ môn phê duyệt.`, type: 'topic', createdAt: new Date(), read: false });
+      await studentUser.save();
+    }
+    res.status(200).json({ message: 'Đề tài đã được Lãnh đạo bộ môn phê duyệt', proposal });
+  } else {
+    if (studentUser) {
+      studentUser.notifications = studentUser.notifications || [];
+      studentUser.notifications.push({ message: `Đề tài "${proposal.topicTitle}" của bạn đã bị Lãnh đạo bộ môn trả lại.`, type: 'topic', createdAt: new Date(), read: false });
+      await studentUser.save();
+    }
+    await proposal.deleteOne();
+    res.status(200).json({ message: 'Đề tài đã bị trả lại và xóa khỏi hệ thống' });
+  }
+});
+
+// API Lãnh đạo khoa xem các đề tài đã được Lãnh đạo bộ môn phê duyệt trong Khoa mình quản lý
+app.get('/faculty-leader/topic-proposals', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Lãnh đạo khoa') {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo khoa mới có quyền truy cập' });
+    }
+
+    const leader = await User.findById(req.user._id);
+    const managedFaculty = leader.managedMajor; // theo yêu cầu: managedMajor đại diện cho Khoa mà lãnh đạo khoa quản lý
+
+    if (!managedFaculty) {
+      return res.status(400).json({ message: 'Chưa cấu hình Khoa quản lý cho Lãnh đạo khoa' });
+    }
+
+    // Lấy tất cả đề tài approved_by_head và head thuộc Khoa quản lý
+    const proposals = await TopicProposal.find({ status: 'approved_by_head' })
+      .populate('headId', 'userInfo.fullName userInfo.faculty managedDepartment')
+      .sort({ submittedAt: -1 });
+
+    const filtered = proposals.filter(p => p.headId && p.headId.userInfo && p.headId.userInfo.faculty === managedFaculty);
+
+    res.status(200).json(filtered);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API tạo đề xuất đề tài (thêm ràng buộc GV1 & GV2 cùng bộ môn và cùng Khoa với SV nếu có GV2)
+app.post('/student/propose-topic', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Sinh viên') {
+      return res.status(403).json({ message: 'Chỉ sinh viên mới có quyền đề xuất đề tài' });
+    }
+
+    const { topicTitle, content, primarySupervisor, secondarySupervisor } = req.body;
+    if (!topicTitle || !content || !primarySupervisor) {
+      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+    }
+
+    const student = await User.findById(req.user._id);
+    const primary = await User.findOne({ username: primarySupervisor });
+    const secondary = secondarySupervisor ? await User.findOne({ username: secondarySupervisor }) : null;
+
+    // Ràng buộc bộ môn và khoa
+    if (!primary || primary.role !== 'Giảng viên') {
+      return res.status(400).json({ message: 'Giảng viên hướng dẫn 1 không hợp lệ' });
+    }
+    if (secondary) {
+      if (secondary.role !== 'Giảng viên') {
+        return res.status(400).json({ message: 'Giảng viên hướng dẫn 2 không hợp lệ' });
+      }
+      const sameDept = (primary.userInfo?.department || '') === (secondary.userInfo?.department || '');
+      const sameFacultyWithStudent = (primary.userInfo?.faculty || '') === (student.studentInfo?.faculty || '') && (secondary.userInfo?.faculty || '') === (student.studentInfo?.faculty || '');
+      if (!sameDept || !sameFacultyWithStudent) {
+        return res.status(400).json({ message: 'GVHD 1 và 2 phải cùng bộ môn và cùng Khoa với học viên' });
+      }
+    } else {
+      // Không có GVHD2: chỉ cần GVHD1 cùng Khoa với học viên
+      if ((primary.userInfo?.faculty || '') !== (student.studentInfo?.faculty || '')) {
+        return res.status(400).json({ message: 'GVHD 1 phải cùng Khoa với học viên' });
+      }
+    }
+
+    const proposal = new TopicProposal({
+      studentId: student.studentInfo?.studentId || student.username,
+      studentName: student.studentInfo?.fullName || student.username,
+      topicTitle,
+      content,
+      primarySupervisor,
+      secondarySupervisor
+    });
+
+    await proposal.save();
+
+    res.status(201).json({
+      message: 'Đề xuất đề tài thành công',
+      proposal: { id: proposal._id, topicTitle: proposal.topicTitle, status: proposal.status }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Calendar Schema cập nhật role
+const eventSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String },
+  eventType: { type: String, required: true, enum: ['academic', 'thesis_defense', 'meeting', 'deadline', 'holiday', 'exam', 'other'] },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  isAllDay: { type: Boolean, default: false },
+  location: { type: String },
+  visibility: { type: String, enum: ['public', 'major_only', 'role_only', 'private'], default: 'public' },
+  targetRoles: [{ type: String, enum: ['Sinh viên', 'Giảng viên', 'Quản trị viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa', 'Chủ nhiệm bộ môn'] }],
+  targetMajors: [String],
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  relatedTopic: { type: mongoose.Schema.Types.ObjectId, ref: 'TopicProposal' },
+  status: { type: String, enum: ['active', 'cancelled', 'completed'], default: 'active' },
+  reminderMinutes: { type: Number, default: 60 },
+  isRecurring: { type: Boolean, default: false },
+  recurringPattern: {
+    type: { type: String, enum: ['daily', 'weekly', 'monthly', 'yearly'] },
+    interval: { type: Number, default: 1 },
+    endDate: Date,
+    daysOfWeek: [Number],
+    dayOfMonth: Number,
+    month: Number
+  }
+});
+
+const Event = mongoose.model('Event', eventSchema);
+
+// API tạo sự kiện
+app.post('/calendar/events', authenticateJWT, async (req, res) => {
+  try {
+    const {
+      title, description, eventType, startDate, endDate, isAllDay,
+      location, visibility, targetRoles, targetMajors, reminderMinutes,
+      isRecurring, recurringPattern
+    } = req.body;
+
+    // Validation
+    if (!title || !eventType || !startDate || !endDate) {
+      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      return res.status(400).json({ message: 'Thời gian bắt đầu không thể sau thời gian kết thúc' });
+    }
+
+    // Kiểm tra quyền tạo sự kiện
+    if (req.user.role === 'Sinh viên' && visibility !== 'private') {
+      return res.status(403).json({ message: 'Sinh viên chỉ có thể tạo sự kiện riêng tư' });
+    }
+
+    const event = new Event({
+      title,
+      description,
+      eventType,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      isAllDay,
+      location,
+      visibility: visibility || 'public',
+      targetRoles: targetRoles || [],
+      targetMajors: targetMajors || [],
+      createdBy: req.user._id,
+      reminderMinutes: reminderMinutes || 60,
+      isRecurring: isRecurring || false,
+      recurringPattern: isRecurring ? recurringPattern : undefined
+    });
+
+    await event.save();
+
+    const populatedEvent = await Event.findById(event._id)
+      .populate('createdBy', 'username userInfo.fullName')
+      .populate('relatedTopic', 'topicTitle studentName');
+
+    res.status(201).json({
+      message: 'Tạo sự kiện thành công',
+      event: populatedEvent
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API lấy danh sách sự kiện (với filter)
+app.get('/calendar/events', authenticateJWT, async (req, res) => {
+  try {
+    const { startDate, endDate, eventType, major } = req.query;
+    const user = await User.findById(req.user._id);
+
+    // Build filter
+    let filter = {
+      status: 'active'
+    };
+
+    // Lọc theo thời gian
+    if (startDate || endDate) {
+      filter.$or = [];
+      if (startDate && endDate) {
+        filter.$or.push({
+          $and: [
+            { startDate: { $lte: new Date(endDate) } },
+            { endDate: { $gte: new Date(startDate) } }
+          ]
+        });
+      } else if (startDate) {
+        filter.endDate = { $gte: new Date(startDate) };
+      } else if (endDate) {
+        filter.startDate = { $lte: new Date(endDate) };
+      }
+    }
+
+    // Lọc theo loại sự kiện
+    if (eventType) {
+      filter.eventType = eventType;
+    }
+
+    // Lọc theo quyền truy cập
+    const accessFilter = {
+      $or: [
+        { visibility: 'public' },
+        { createdBy: req.user._id }, // Sự kiện do mình tạo
+        { 
+          visibility: 'role_only',
+          targetRoles: { $in: [req.user.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : req.user.role] }
+        }
+      ]
+    };
+
+    // Thêm filter theo ngành cho sinh viên và CNBM
+    if (req.user.role === 'Sinh viên' && user.studentInfo?.major) {
+      accessFilter.$or.push({
+        visibility: 'major_only',
+        targetMajors: { $in: [user.studentInfo.major] }
+      });
+    } else if (['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role) && user.managedDepartment) {
+      accessFilter.$or.push({
+        visibility: 'major_only',
+        targetMajors: { $in: [user.managedDepartment] }
+      });
+    }
+
+    // Combine filters
+    const finalFilter = {
+      $and: [filter, accessFilter]
+    };
+
+    const events = await Event.find(finalFilter)
+      .populate('createdBy', 'username userInfo.fullName studentInfo.fullName')
+      .populate('relatedTopic', 'topicTitle studentName')
+      .sort({ startDate: 1 });
+
+    res.status(200).json(events);
+
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API cập nhật sự kiện
+app.put('/calendar/events/:id', authenticateJWT, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const event = await Event.findById(eventId);
+
+    if (!event) {
+      return res.status(404).json({ message: 'Không tìm thấy sự kiện' });
+    }
+
+    // Kiểm tra quyền chỉnh sửa
+    const canEdit = (
+      event.createdBy.equals(req.user._id) || 
+      req.user.role === 'Quản trị viên'
+    );
+
+    if (!canEdit) {
+      return res.status(403).json({ message: 'Không có quyền chỉnh sửa sự kiện này' });
+    }
+
+    const {
+      title, description, eventType, startDate, endDate, isAllDay,
+      location, visibility, targetRoles, targetMajors, status,
+      reminderMinutes
+    } = req.body;
+
+    // Validation
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      return res.status(400).json({ message: 'Thời gian bắt đầu không thể sau thời gian kết thúc' });
+    }
+
+    // Update fields
+    if (title) event.title = title;
+    if (description !== undefined) event.description = description;
+    if (eventType) event.eventType = eventType;
+    if (startDate) event.startDate = new Date(startDate);
+    if (endDate) event.endDate = new Date(endDate);
+    if (isAllDay !== undefined) event.isAllDay = isAllDay;
+    if (location !== undefined) event.location = location;
+    if (visibility) event.visibility = visibility;
+    if (targetRoles) event.targetRoles = targetRoles;
+    if (targetMajors) event.targetMajors = targetMajors;
+    if (status) event.status = status;
+    if (reminderMinutes !== undefined) event.reminderMinutes = reminderMinutes;
+    
+    event.updatedAt = new Date();
+
+    await event.save();
+
+    const updatedEvent = await Event.findById(eventId)
+      .populate('createdBy', 'username userInfo.fullName')
+      .populate('relatedTopic', 'topicTitle studentName');
+
+    res.status(200).json({
+      message: 'Cập nhật sự kiện thành công',
+      event: updatedEvent
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API xóa sự kiện
+app.delete('/calendar/events/:id', authenticateJWT, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const event = await Event.findById(eventId);
+
+    if (!event) {
+      return res.status(404).json({ message: 'Không tìm thấy sự kiện' });
+    }
+
+    // Kiểm tra quyền xóa
+    const canDelete = (
+      event.createdBy.equals(req.user._id) || 
+      req.user.role === 'Quản trị viên'
+    );
+
+    if (!canDelete) {
+      return res.status(403).json({ message: 'Không có quyền xóa sự kiện này' });
+    }
+
+    await Event.findByIdAndDelete(eventId);
+
+    res.status(200).json({ message: 'Xóa sự kiện thành công' });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API thống kê sự kiện: cho admin và Lãnh đạo bộ môn
+app.get('/calendar/statistics', authenticateJWT, async (req, res) => {
+  try {
+    if (!['Quản trị viên', 'Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    }
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date();
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59, 999);
+
+    const statistics = await Event.aggregate([
+      {
+        $match: {
+          startDate: { $gte: startOfMonth, $lte: endOfMonth }
+        }
+      },
+      {
+        $group: {
+          _id: '$eventType',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const totalEvents = await Event.countDocuments({
+      startDate: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+
+    const upcomingEvents = await Event.countDocuments({
+      startDate: { $gte: new Date() },
+      status: 'active'
+    });
+
+    res.status(200).json({
+      totalEventsThisMonth: totalEvents,
+      upcomingEvents,
+      eventsByType: statistics
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API tự động tạo sự kiện từ deadline đề tài
+app.post('/calendar/auto-create-topic-events', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Quản trị viên') {
+      return res.status(403).json({ message: 'Chỉ admin mới có quyền tạo sự kiện tự động' });
+    }
+
+    const { title, deadlineDate, targetMajors, reminderDays = 7 } = req.body;
+
+    if (!title || !deadlineDate) {
+      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+    }
+
+    const event = new Event({
+      title: `Hạn nộp: ${title}`,
+      description: `Hạn cuối nộp ${title}`,
+      eventType: 'deadline',
+      startDate: new Date(deadlineDate),
+      endDate: new Date(deadlineDate),
+      isAllDay: true,
+      visibility: 'major_only',
+      targetMajors: targetMajors || [],
+      targetRoles: ['Sinh viên'],
+      createdBy: req.user._id,
+      reminderMinutes: reminderDays * 24 * 60 // Convert days to minutes
+    });
+
+    await event.save();
+
+    res.status(201).json({
+      message: 'Tạo sự kiện deadline thành công',
+      event
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Auth check endpoint for frontend to validate session
+app.get('/auth/check', authenticateJWT, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(401).json({ message: 'Unauthorized' });
+
+    const normalizedRole = user.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : user.role;
+    const result = {
+      username: user.username,
+      role: normalizedRole,
+    };
+
+    if (normalizedRole === 'Sinh viên') {
+      result.studentInfo = user.studentInfo || null;
+    } else if (normalizedRole === 'Lãnh đạo bộ môn') {
+      result.userInfo = user.userInfo || null;
+      result.managedDepartment = user.managedDepartment || null;
+    } else if (normalizedRole === 'Lãnh đạo khoa') {
+      result.userInfo = user.userInfo || null;
+      result.managedMajor = user.managedMajor || null;
+    } else {
+      result.userInfo = user.userInfo || null;
+    }
+
+    return res.status(200).json({ user: result });
+  } catch (error) {
+    return res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Danh sách tất cả khoa/bộ môn (distinct theo userInfo.faculty)
+app.get('/faculties', authenticateJWT, async (req, res) => {
+  try {
+    const faculties = await User.distinct('userInfo.faculty', { 'userInfo.faculty': { $ne: null, $ne: '' } });
+    res.json(faculties.sort());
+  } catch (error) {
+    console.error('Error fetching faculties:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Danh sách thành viên trong một khoa/bộ môn
+// app.get('/faculty/:facultyName/members', authenticateJWT, async (req, res) => {
+//   // if (req.user.role !== 'Quản trị viên') return res.status(403).json({ message: 'Không có quyền truy cập' });
+//   const { facultyName } = req.params;
+//   try {
+//     const lecturers = await User.find({ role: 'Giảng viên', 'userInfo.faculty': facultyName });
+//     const heads = await User.find({
+//       $or: [
+//         { role: 'Lãnh đạo bộ môn', managedDepartment: facultyName },
+//         { role: 'Chủ nhiệm bộ môn', managedMajor: facultyName }
+//       ]
+//     });
+
+//     const normalizeHeadRole = (r) => r.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : r.role;
+
+//     const members = [
+//       ...lecturers.map(u => ({
+//         _id: u._id,
+//         email: u.userInfo.email,
+//         fullName: u.userInfo.fullName,
+//         department: u.userInfo.department,
+//         position: u.userInfo.position,
+//         role: u.role,
+//         faculty: u.userInfo.faculty
+//       })),
+//       ...heads.map(u => ({
+//         _id: u._id,
+//         email: u.userInfo.email,
+//         fullName: u.userInfo.fullName,
+//         department: u.managedDepartment || u.managedMajor || '',
+//         position: 'Lãnh đạo bộ môn',
+//         role: normalizeHeadRole(u),
+//         faculty: u.userInfo.faculty || u.managedDepartment || u.managedMajor
+//       }))
+//     ];
+//     res.json(members);
+//   } catch (error) {
+//     console.error('Error fetching faculty members:', error);
+//     res.status(500).json({ message: 'Lỗi server', error: error.message });
+//   }
+// });
+
+app.get('/faculty/:facultyName/members', authenticateJWT, async (req, res) => {
+  const { facultyName } = req.params;
+  
+  try {
+    // Lấy giảng viên theo faculty
+    const lecturers = await User.find({ 
+      role: 'Giảng viên', 
+      'userInfo.faculty': facultyName 
+    });
+
+    // Lấy LĐBM theo faculty (QUAN TRỌNG: tìm qua userInfo.faculty, KHÔNG phải managedDepartment)
+    const heads = await User.find({
+      role: { $in: ['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'] },
+      'userInfo.faculty': facultyName
+    });
+
+    console.log(`📋 Faculty ${facultyName}: ${lecturers.length} GV + ${heads.length} LĐBM`);
+
+    const normalizeHeadRole = (r) => r.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : r.role;
+
+    const members = [
+      ...lecturers.map((u, idx) => ({
+        stt: idx + 1,
+        _id: u._id,
+        email: u.userInfo?.email || u.username,
+        fullName: u.userInfo?.fullName,
+        department: u.userInfo?.department,
+        position: u.userInfo?.position,
+        role: u.role,
+        faculty: u.userInfo?.faculty
+      })),
+      ...heads.map((u, idx) => ({
+        stt: lecturers.length + idx + 1,
+        _id: u._id,
+        email: u.userInfo?.email || u.username,
+        fullName: u.userInfo?.fullName,
+        department: u.managedDepartment || u.userInfo?.department,
+        position: u.userInfo?.position || 'Lãnh đạo bộ môn',
+        role: normalizeHeadRole(u),
+        faculty: u.userInfo?.faculty,
+        managedDepartment: u.managedDepartment
+      }))
+    ];
+
+    res.json(members);
+  } catch (error) {
+    console.error('Error fetching faculty members:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API lấy danh sách giảng viên (cho autocomplete)
+app.get('/supervisors', authenticateJWT, async (req, res) => {
+  try {
+    const supervisors = await User.find({ role: 'Giảng viên' }).select('username userInfo.fullName');
+    const supervisorList = supervisors.map(supervisor => ({
+      username: supervisor.username,
+      fullName: supervisor.userInfo?.fullName || supervisor.username
+    }));
+    res.status(200).json(supervisorList);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API lấy thông tin cá nhân sinh viên
+app.get('/student/profile', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Sinh viên') {
+      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    }
+    const user = await User.findById(req.user._id);
+    if (!user || !user.studentInfo) {
+      return res.status(404).json({ message: 'Không tìm thấy thông tin sinh viên' });
+    }
+    res.json({
+      studentId: user.studentInfo.studentId,
+      fullName: user.studentInfo.fullName,
+      faculty: user.studentInfo.faculty,
+      major: user.studentInfo.major
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server khi lấy thông tin sinh viên' });
+  }
+});
+
+// API upload danh sách giảng viên từ file Excel
+app.post('/admin/upload-lecturers', authenticateJWT, upload.single('excelFile'), async (req, res) => {
+  if (req.user.role !== 'Quản trị viên') {
+    return res.status(403).json({ message: 'Không có quyền truy cập' });
+  }
+  const faculty = req.body.faculty;
+  const file = req.file;
+  if (!faculty || !file) {
+    return res.status(400).json({ message: 'Thiếu thông tin khoa hoặc file' });
+  }
+  try {
+    const workbook = new exceljs.Workbook();
+    await workbook.xlsx.readFile(file.path);
+    const worksheet = workbook.getWorksheet(1);
+    const createdLecturers = [];
+    const errors = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) { // Bỏ qua header
+        const stt = row.getCell(1).value;
+        const fullName = row.getCell(2).value?.toString().trim();
+        const email = row.getCell(3).value?.toString().trim().toLowerCase();
+        const department = row.getCell(4).value?.toString().trim();
+        const position = row.getCell(5).value?.toString().trim();
+        if (!email || !fullName || !department) {
+          errors.push(`Hàng ${rowNumber}: Thiếu thông tin`);
+          return;
+        }
+        // Kiểm tra tồn tại
+        createdLecturers.push({ fullName, email, department, position });
+      }
+    });
+    // Tạo tài khoản giảng viên
+    for (const lecturer of createdLecturers) {
+      try {
+        let user = await User.findOne({ username: lecturer.email });
+        if (user) {
+          errors.push(`Email đã tồn tại: ${lecturer.email}`);
+          continue;
+        }
+        const hashedPassword = await bcrypt.hash('123', 10);
+        user = new User({
+          username: lecturer.email,
+          password: hashedPassword,
+          role: 'Giảng viên',
+          userInfo: {
+            fullName: lecturer.fullName,
+            email: lecturer.email,
+            faculty: faculty,
+            department: lecturer.department,
+            position: lecturer.position
+          }
+        });
+        await user.save();
+      } catch (err) {
+        errors.push(`Lỗi tạo tài khoản cho ${lecturer.email}: ${err.message}`);
+      }
+    }
+    fs.unlink(file.path, (err) => { if (err) console.error('Lỗi xóa file:', err); });
+    res.status(201).json({
+      message: 'Tải lên danh sách giảng viên hoàn tất',
+      success: { total: createdLecturers.length - errors.length },
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    if (file && file.path) {
+      fs.unlink(file.path, (err) => { if (err) console.error('Lỗi xóa file:', err); });
+    }
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+// API giảng viên xem đề xuất đề tài của sinh viên
+app.get('/supervisor/topic-proposals', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Giảng viên') {
+      return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền truy cập' });
+    }
+
+    const proposals = await TopicProposal.find({
+      $or: [
+        { primarySupervisor: req.user.username },
+        { secondarySupervisor: req.user.username }
+      ]
+    }).sort({ submittedAt: -1 });
+
+    res.status(200).json(proposals);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API đổi mật khẩu
+app.post('/change-password', authenticateJWT, async (req, res) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin.' });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: 'Mật khẩu mới và xác nhận không khớp.' });
+    }
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng.' });
+    }
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mật khẩu cũ không đúng.' });
+    }
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    res.status(200).json({ message: 'Đổi mật khẩu thành công.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API LĐBM xem thống kê học viên và đề tài thuộc ngành quản lý
+app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Lãnh đạo bộ môn') {
+      return res.status(403).json({ message: 'Chỉ LĐBM mới có quyền truy cập' });
+    }
+
+    // Lấy thông tin LĐBM
+    const head = await User.findById(req.user._id);
+    if (!head || !head.managedDepartment) {
+      return res.status(404).json({ message: 'Không tìm thấy thông tin ngành quản lý' });
+    }
+
+    // Lấy danh sách học viên thuộc khoa
+    const students = await User.find({ 
+      role: 'Sinh viên',
+      'studentInfo.department': head.managedDepartment 
+    }).select('studentInfo');
+
+    // Lấy danh sách đề tài của các học viên thuộc khoa
+    const studentIds = students.map(student => student.studentInfo?.studentId).filter(Boolean);
+    const topics = await TopicProposal.find({ 
+      studentId: { $in: studentIds } 
+    }).sort({ submittedAt: -1 });
+
+    // Tạo map để ghép thông tin
+    const topicsByStudent = {};
+    topics.forEach(topic => {
+      if (!topicsByStudent[topic.studentId]) {
+        topicsByStudent[topic.studentId] = [];
+      }
+      topicsByStudent[topic.studentId].push(topic);
+    });
+
+    // Tạo danh sách kết quả
+    const result = students.map(student => ({
+      studentId: student.studentInfo?.studentId,
+      fullName: student.studentInfo?.fullName,
+      major: student.studentInfo?.major,
+      topics: topicsByStudent[student.studentInfo?.studentId] || []
+    }));
+
+    // Thống kê tổng quan
+    const statistics = {
+      totalStudents: students.length,
+      studentsWithTopics: result.filter(s => s.topics.length > 0).length,
+      totalTopics: topics.length,
+      topicsByStatus: {
+        pending: topics.filter(t => t.status === 'pending').length,
+        approved: topics.filter(t => t.status === 'approved').length,
+        rejected: topics.filter(t => t.status === 'rejected').length,
+        waiting_head_approval: topics.filter(t => t.status === 'waiting_head_approval').length,
+        approved_by_head: topics.filter(t => t.status === 'approved_by_head').length
+      }
+    };
+
+    res.status(200).json({
+      major: head.managedMajor,
+      statistics,
+      students: result
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API mới: Lấy danh sách tất cả bộ môn/phòng thí nghiệm theo khoa
+app.get('/departments/by-faculty/:facultyName', authenticateJWT, async (req, res) => {
+  try {
+    const facultyName = req.params.facultyName;
+    // Tìm tất cả user thuộc khoa này, lấy các bộ môn/phòng thí nghiệm duy nhất
+    const members = await User.find({ 'userInfo.faculty': facultyName });
+    const departments = Array.from(new Set(members.map(m => m.userInfo.department).filter(Boolean)));
+    res.status(200).json({ departments });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API mới: Kiểm tra lãnh đạo bộ môn phù hợp với bộ môn/phòng thí nghiệm
+app.get('/check-head-for-department', authenticateJWT, async (req, res) => {
+  try {
+    const { department } = req.query;
+    if (!department) {
+      return res.status(400).json({ message: 'Thiếu thông tin bộ môn/phòng thí nghiệm' });
+    }
+    // Tìm lãnh đạo bộ môn có managedDepartment trùng với department
+    const head = await User.findOne({ role: 'Lãnh đạo bộ môn', managedDepartment: department });
+    if (head) {
+      return res.status(200).json({ found: true, head: {
+        id: head._id,
+        email: head.username,
+        fullName: head.userInfo?.fullName,
+        managedDepartment: head.managedDepartment
+      }});
+    } else {
+      return res.status(404).json({ found: false, message: 'Không tìm thấy lãnh đạo bộ môn phù hợp.' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Start server
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
+
 
 
 

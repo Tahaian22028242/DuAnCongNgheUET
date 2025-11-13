@@ -89,7 +89,7 @@ const Calendar = () => {
     { value: 'other', label: 'Khác', icon: EventIcon, color: '#616161' }
   ];
 
-  const roles = ['Sinh viên', 'Giảng viên', 'Quản trị viên', 'Chủ nhiệm bộ môn'];
+  const roles = ['Sinh viên', 'Giảng viên', 'Quản trị viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'];
   const majors = ['Công nghệ thông tin', 'Khoa học máy tính', 'Kỹ thuật phần mềm', 'An toàn thông tin'];
 
   useEffect(() => {

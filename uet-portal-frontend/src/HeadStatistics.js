@@ -88,8 +88,8 @@ function HeadStatistics() {
     switch (status) {
       case 'approved': return 'Đã phê duyệt';
       case 'rejected': return 'Đã từ chối';
-      case 'waiting_head_approval': return 'Chờ CNBM phê duyệt';
-      case 'approved_by_head': return 'Đã được CNBM phê duyệt';
+      case 'waiting_head_approval': return 'Chờ LĐBM phê duyệt';
+      case 'approved_by_head': return 'Đã được LĐBM phê duyệt';
       default: return 'Chờ xử lý';
     }
   };
@@ -236,7 +236,7 @@ function HeadStatistics() {
             <Grid item xs={6} md={3}>
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                  Chờ CNBM duyệt
+                  Chờ LĐBM duyệt
                 </Typography>
                 <Typography variant="h6" color="warning.main">
                   {statistics?.topicsByStatus?.waiting_head_approval || 0}
@@ -246,7 +246,7 @@ function HeadStatistics() {
             <Grid item xs={6} md={3}>
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                  Đã được CNBM duyệt
+                  Đã được LĐBM duyệt
                 </Typography>
                 <Typography variant="h6" color="success.main">
                   {statistics?.topicsByStatus?.approved_by_head || 0}
@@ -345,7 +345,7 @@ function HeadStatistics() {
                           
                           {topic.headComments && (
                             <Typography variant="body2" sx={{ mb: 1 }}>
-                              <strong>Nhận xét CNBM:</strong> {topic.headComments}
+                              <strong>Nhận xét LĐBM:</strong> {topic.headComments}
                             </Typography>
                           )}
                         </Paper>
@@ -381,7 +381,7 @@ function HeadStatistics() {
             <AccountCircleIcon sx={{ mr: 1 }} />
             <ListItemText primary="Account" />
           </ListItem>
-          {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Chủ nhiệm bộ môn') && (
+          {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
             <ListItem button onClick={() => navigate('/batches')}>
               <GroupIcon sx={{ mr: 1 }} />
               <ListItemText primary="Danh sách học viên" />
@@ -395,7 +395,7 @@ function HeadStatistics() {
               </ListItem>
               <ListItem button onClick={() => navigate('/upload-heads')}>
                 <UploadFileIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Tải lên CNBM" />
+                <ListItemText primary="Tải lên Lãnh đạo bộ môn" />
               </ListItem>
               <ListItem button onClick={() => navigate('/upload-lecturers')}>
                 <UploadFileIcon sx={{ mr: 1 }} />
@@ -425,13 +425,13 @@ function HeadStatistics() {
               <ListItemText primary="Đề xuất từ học viên" />
             </ListItem>
           )}
-          {user.role === 'Chủ nhiệm bộ môn' && (
+          {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
             <ListItem button onClick={() => navigate('/head/topics')}>
               <AssignmentIcon sx={{ mr: 1 }} />
               <ListItemText primary="Đề tài chờ phê duyệt" />
             </ListItem>
           )}
-          {user.role === 'Chủ nhiệm bộ môn' && (
+          {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
             <ListItem button onClick={() => navigate('/head/statistics')}>
               <GroupIcon sx={{ mr: 1 }} />
               <ListItemText primary="Thống kê học viên" />

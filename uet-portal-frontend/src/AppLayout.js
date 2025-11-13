@@ -163,7 +163,7 @@ const AppLayout = ({ children }) => {
                         <AccountCircleIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Tài khoản" />}
                     </ListItem>
-                    {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Chủ nhiệm bộ môn') && (
+                    {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
                         <ListItem button onClick={() => navigate('/batches')} sx={{ cursor: 'pointer', py: 0.5 }}>
                             <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                             {drawerOpen && <ListItemText primary="Quản lý học viên" />}
@@ -222,7 +222,7 @@ const AppLayout = ({ children }) => {
                             </ListItem>
                         </>
                     )}
-                    {user.role === 'Chủ nhiệm bộ môn' && (
+                    {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
                         <>
                             <ListItem button onClick={() => navigate('/head/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
@@ -231,6 +231,14 @@ const AppLayout = ({ children }) => {
                             <ListItem button onClick={() => navigate('/head/statistics')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thống kê học viên" />}
+                            </ListItem>
+                        </>
+                    )}
+                    {user.role === 'Lãnh đạo khoa' && (
+                        <>
+                            <ListItem button onClick={() => navigate('/faculty-leader/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Quản lý đề cương" />}
                             </ListItem>
                         </>
                     )}

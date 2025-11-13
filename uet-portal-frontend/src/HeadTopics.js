@@ -94,7 +94,7 @@ function HeadTopics() {
             <AccountCircleIcon sx={{ mr: 1 }} />
             <ListItemText primary="Account" />
           </ListItem>
-          {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Chủ nhiệm bộ môn') && (
+          {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
             <ListItem button onClick={() => navigate('/batches')}>
               <GroupIcon sx={{ mr: 1 }} />
               <ListItemText primary="Danh sách học viên" />
@@ -108,7 +108,7 @@ function HeadTopics() {
               </ListItem>
               <ListItem button onClick={() => navigate('/upload-heads')}>
                 <UploadFileIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Tải lên CNBM" />
+                <ListItemText primary="Tải lên Lãnh đạo bộ môn" />
               </ListItem>
               <ListItem button onClick={() => navigate('/upload-lecturers')}>
                 <UploadFileIcon sx={{ mr: 1 }} />
@@ -138,13 +138,13 @@ function HeadTopics() {
               <ListItemText primary="Đề xuất từ học viên" />
             </ListItem>
           )}
-          {user.role === 'Chủ nhiệm bộ môn' && (
+          {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
             <ListItem button onClick={() => navigate('/head/topics')}>
               <AssignmentIcon sx={{ mr: 1 }} />
               <ListItemText primary="Đề tài chờ phê duyệt" />
             </ListItem>
           )}
-          {user.role === 'Chủ nhiệm bộ môn' && (
+          {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
             <ListItem button onClick={() => navigate('/head/statistics')}>
               <GroupIcon sx={{ mr: 1 }} />
               <ListItemText primary="Thống kê học viên" />
