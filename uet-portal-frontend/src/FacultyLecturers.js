@@ -512,6 +512,7 @@ function FacultyLecturers() {
                   >
                     <MenuItem value="Giảng viên">Giảng viên</MenuItem>
                     <MenuItem value="Lãnh đạo bộ môn">Lãnh đạo bộ môn</MenuItem>
+                    <MenuItem value="Lãnh đạo khoa">Lãnh đạo khoa</MenuItem>
                   </Select>
                 </FormControl>
 
@@ -525,15 +526,23 @@ function FacultyLecturers() {
                   </Alert>
                 )}
 
-                <TextField
-                  label="Bộ môn/Phòng thí nghiệm"
-                  value={memberForm.department}
-                  onChange={e => setMemberForm({ ...memberForm, department: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                  required={memberForm.role === 'Lãnh đạo bộ môn'}
-                  helperText={memberForm.role === 'Lãnh đạo bộ môn' ? 'Bắt buộc đối với LĐBM' : ''}
-                />
+                {memberForm.role === 'Lãnh đạo khoa' && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <strong>Lưu ý:</strong> Người này sẽ quản lý toàn bộ Khoa {facultyName}. Mỗi khoa chỉ có 1 Lãnh đạo khoa.
+                  </Alert>
+                )}
+
+                {memberForm.role !== 'Lãnh đạo khoa' && (
+                  <TextField
+                    label="Bộ môn/Phòng thí nghiệm"
+                    value={memberForm.department}
+                    onChange={e => setMemberForm({ ...memberForm, department: e.target.value })}
+                    fullWidth
+                    sx={{ mb: 2 }}
+                    required={memberForm.role === 'Lãnh đạo bộ môn'}
+                    helperText={memberForm.role === 'Lãnh đạo bộ môn' ? 'Bắt buộc đối với LĐBM' : ''}
+                  />
+                )}
                 <TextField
                   label="Chức vụ"
                   value={memberForm.position}
@@ -583,6 +592,7 @@ function FacultyLecturers() {
                   >
                     <MenuItem value="Giảng viên">Giảng viên</MenuItem>
                     <MenuItem value="Lãnh đạo bộ môn">Lãnh đạo bộ môn</MenuItem>
+                    <MenuItem value="Lãnh đạo khoa">Lãnh đạo khoa</MenuItem>
                   </Select>
                 </FormControl>
 
@@ -595,6 +605,17 @@ function FacultyLecturers() {
                 {selectedMember?.role === 'Giảng viên' && memberForm.role === 'Lãnh đạo bộ môn' && (
                   <Alert severity="info" sx={{ mb: 2 }}>
                     Chuyển từ Giảng viên sang LĐBM: Phải chọn bộ môn/phòng thí nghiệm quản lý.
+                  </Alert>
+                )}
+                {selectedMember?.role === 'Giảng viên' && memberForm.role === 'Lãnh đạo khoa' && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Chuyển sang Lãnh đạo khoa: Người này sẽ quản lý toàn bộ Khoa {facultyName}.
+                  </Alert>
+                )}
+                {selectedMember?.role === 'Lãnh đạo khoa' && (memberForm.role === 'Giảng viên' || memberForm.role === 'Lãnh đạo bộ môn') && (
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    Chuyển từ Lãnh đạo khoa: Hệ thống sẽ kiểm tra xem có đề tài đang chờ duyệt không.
+                    {memberForm.role === 'Lãnh đạo bộ môn' && ' Phải chọn bộ môn/phòng thí nghiệm quản lý.'}
                   </Alert>
                 )}
 
@@ -612,6 +633,13 @@ function FacultyLecturers() {
                       ))}
                     </Select>
                   </FormControl>
+                )}
+
+                {/* Nếu là Lãnh đạo khoa: chỉ hiển thị thông tin, không cho chọn */}
+                {memberForm.role === 'Lãnh đạo khoa' && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <strong>Khoa quản lý:</strong> {facultyName}
+                  </Alert>
                 )}
 
                 {/* Department cho giảng viên */}

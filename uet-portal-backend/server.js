@@ -87,21 +87,29 @@ const StudentBatch = mongoose.model('StudentBatch', studentBatchSchema);
 const topicProposalSchema = new mongoose.Schema({
   studentId: { type: String, required: true },
   studentName: { type: String, required: true },
+  studentFaculty: { type: String }, // Khoa của học viên
+  studentMajor: { type: String }, // Ngành của học viên
   topicTitle: { type: String, required: true },
   content: { type: String, required: true },
   primarySupervisor: { type: String, required: true },
+  primarySupervisorName: { type: String }, // Tên GVHD chính
   secondarySupervisor: { type: String },
+  secondarySupervisorName: { type: String }, // Tên GVHD phụ
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected', 'waiting_head_approval', 'approved_by_head'],
+    enum: ['pending', 'approved', 'rejected', 'waiting_head_approval', 'approved_by_head', 'waiting_faculty_leader_approval', 'approved_by_faculty_leader', 'rejected_by_head', 'rejected_by_faculty_leader'],
     default: 'pending'
   },
   supervisorComments: { type: String },
   submittedAt: { type: Date, default: Date.now },
   reviewedAt: { type: Date },
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  headId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // CNBM quản lý
-  headComments: { type: String }
+  headId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Lãnh đạo bộ môn
+  headComments: { type: String },
+  headReviewedAt: { type: Date },
+  facultyLeaderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Lãnh đạo khoa
+  facultyLeaderComments: { type: String },
+  facultyLeaderReviewedAt: { type: Date }
 });
 
 const TopicProposal = mongoose.model('TopicProposal', topicProposalSchema);
@@ -910,8 +918,8 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
 
   try {
     const user = await User.findById(lecturerId);
-    if (!user || !['Giảng viên', 'Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(user.role))
-      return res.status(404).json({ message: 'Không tìm thấy giảng viên/LĐBM' });
+    if (!user || !['Giảng viên', 'Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn', 'Lãnh đạo khoa'].includes(user.role))
+      return res.status(404).json({ message: 'Không tìm thấy thành viên' });
 
     // 1. Xử lý thay đổi email (username)
     if (email && email !== user.username) {
@@ -959,6 +967,78 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
         
         console.log(`✅ Chuyển GV → LĐBM: managedDepartment = ${deptToManage}`);
       }
+      // Giảng viên → Lãnh đạo khoa
+      else if (user.role === 'Giảng viên' && role === 'Lãnh đạo khoa') {
+        const facultyToManage = faculty || user.userInfo?.faculty;
+        
+        if (!facultyToManage) {
+          return res.status(400).json({
+            message: 'Không xác định được Khoa để quản lý'
+          });
+        }
+
+        // Kiểm tra Khoa đã có Lãnh đạo khoa chưa
+        const existingFacultyLeader = await User.findOne({
+          role: 'Lãnh đạo khoa',
+          'userInfo.faculty': facultyToManage,
+          _id: { $ne: lecturerId }
+        });
+
+        if (existingFacultyLeader) {
+          return res.status(400).json({
+            message: `Khoa "${facultyToManage}" đã có Lãnh đạo khoa: ${existingFacultyLeader.userInfo?.fullName}`
+          });
+        }
+
+        user.role = 'Lãnh đạo khoa';
+        user.userInfo = user.userInfo || {};
+        user.userInfo.faculty = facultyToManage;
+        // Lãnh đạo khoa không cần managedDepartment
+        user.managedDepartment = undefined;
+        
+        console.log(`✅ Chuyển GV → Lãnh đạo khoa: faculty = ${facultyToManage}`);
+      }
+      // LĐBM → Lãnh đạo khoa
+      else if (user.role === 'Lãnh đạo bộ môn' && role === 'Lãnh đạo khoa') {
+        // Kiểm tra có đề tài đang chờ LĐBM duyệt không
+        const pendingTopics = await TopicProposal.countDocuments({
+          headId: user._id,
+          status: 'waiting_head_approval'
+        });
+
+        if (pendingTopics > 0) {
+          return res.status(400).json({
+            message: `Không thể chuyển sang Lãnh đạo khoa vì còn ${pendingTopics} đề tài đang chờ duyệt`
+          });
+        }
+
+        const facultyToManage = faculty || user.userInfo?.faculty;
+        if (!facultyToManage) {
+          return res.status(400).json({
+            message: 'Không xác định được Khoa để quản lý'
+          });
+        }
+
+        // Kiểm tra Khoa đã có Lãnh đạo khoa chưa
+        const existingFacultyLeader = await User.findOne({
+          role: 'Lãnh đạo khoa',
+          'userInfo.faculty': facultyToManage,
+          _id: { $ne: lecturerId }
+        });
+
+        if (existingFacultyLeader) {
+          return res.status(400).json({
+            message: `Khoa "${facultyToManage}" đã có Lãnh đạo khoa: ${existingFacultyLeader.userInfo?.fullName}`
+          });
+        }
+
+        user.role = 'Lãnh đạo khoa';
+        user.managedDepartment = undefined; // Xóa quản lý bộ môn
+        user.userInfo = user.userInfo || {};
+        user.userInfo.faculty = facultyToManage;
+        
+        console.log(`✅ Chuyển LĐBM → Lãnh đạo khoa: faculty = ${facultyToManage}`);
+      }
       // LĐBM → Giảng viên
       else if (user.role === 'Lãnh đạo bộ môn' && role === 'Giảng viên') {
         // Kiểm tra có đề tài đang chờ duyệt không
@@ -973,7 +1053,7 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
           });
         }
 
-        // Lưu lại thông tin bộ môn trước khi xóa managedDepartment
+        // Lưa lại thông tin bộ môn trước khi xóa managedDepartment
         const oldDepartment = user.managedDepartment;
 
         user.role = 'Giảng viên';
@@ -990,9 +1070,62 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
         
         console.log(`✅ Chuyển LĐBM → GV: Giữ department = ${user.userInfo.department}`);
       }
+      // Lãnh đạo khoa → Giảng viên hoặc LĐBM
+      else if (user.role === 'Lãnh đạo khoa' && (role === 'Giảng viên' || role === 'Lãnh đạo bộ môn')) {
+        // Kiểm tra có đề tài đang chờ Lãnh đạo khoa duyệt không
+        const pendingTopics = await TopicProposal.countDocuments({
+          facultyLeaderId: user._id,
+          status: 'waiting_faculty_leader_approval'
+        });
+
+        if (pendingTopics > 0) {
+          return res.status(400).json({
+            message: `Không thể chuyển vai trò vì còn ${pendingTopics} đề tài đang chờ duyệt`
+          });
+        }
+
+        if (role === 'Giảng viên') {
+          user.role = 'Giảng viên';
+          user.managedDepartment = undefined;
+          user.userInfo = user.userInfo || {};
+          if (department) user.userInfo.department = department;
+          if (faculty) user.userInfo.faculty = faculty;
+          
+          console.log(`✅ Chuyển Lãnh đạo khoa → GV`);
+        } else if (role === 'Lãnh đạo bộ môn') {
+          const deptToManage = managedDepartment || department;
+          
+          if (!deptToManage) {
+            return res.status(400).json({
+              message: 'Phải chỉ định bộ môn/phòng thí nghiệm quản lý khi chuyển sang LĐBM'
+            });
+          }
+
+          // Kiểm tra bộ môn đã có LĐBM chưa
+          const existingHead = await User.findOne({
+            role: { $in: ['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'] },
+            managedDepartment: deptToManage,
+            _id: { $ne: lecturerId }
+          });
+
+          if (existingHead) {
+            return res.status(400).json({
+              message: `Bộ môn/Phòng thí nghiệm "${deptToManage}" đã có LĐBM khác: ${existingHead.userInfo?.fullName}`
+            });
+          }
+
+          user.role = 'Lãnh đạo bộ môn';
+          user.managedDepartment = deptToManage;
+          user.userInfo = user.userInfo || {};
+          user.userInfo.department = deptToManage;
+          if (faculty) user.userInfo.faculty = faculty;
+          
+          console.log(`✅ Chuyển Lãnh đạo khoa → LĐBM: managedDepartment = ${deptToManage}`);
+        }
+      }
       else {
         return res.status(400).json({
-          message: 'Chỉ hỗ trợ chuyển đổi giữa Giảng viên và LĐBM'
+          message: 'Không hỗ trợ chuyển đổi vai trò này'
         });
       }
     }
@@ -1025,6 +1158,9 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
         user.managedDepartment = managedDepartment;
         user.userInfo.department = managedDepartment;
       }
+      if (faculty) user.userInfo.faculty = faculty;
+    } else if (user.role === 'Lãnh đạo khoa') {
+      // Lãnh đạo khoa chỉ quản lý khoa, không có department
       if (faculty) user.userInfo.faculty = faculty;
     }
 
@@ -1264,61 +1400,189 @@ app.get('/head/topic-proposals', authenticateJWT, async (req, res) => {
   res.status(200).json(proposals);
 });
 
-// API Lãnh đạo bộ môn duyệt hoặc trả lại đề tài
+// API Lãnh đạo bộ môn duyệt hoặc từ chối đề tài
 app.put('/head/review-topic/:id', authenticateJWT, async (req, res) => {
-  if (!['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
-    return res.status(403).json({ message: 'Chỉ Lãnh đạo bộ môn mới có quyền duyệt' });
-  }
-  const { status, comments } = req.body;
-  if (!['approved_by_head', 'returned'].includes(status)) {
-    return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
-  }
-  const proposal = await TopicProposal.findById(req.params.id);
-  const studentUser = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
-  if (status === 'approved_by_head') {
-    proposal.status = 'approved_by_head';
-    proposal.headComments = comments;
-    await proposal.save();
-    if (studentUser) {
-      studentUser.notifications = studentUser.notifications || [];
-      studentUser.notifications.push({ message: `Đề tài "${proposal.topicTitle}" của bạn đã được Lãnh đạo bộ môn phê duyệt.`, type: 'topic', createdAt: new Date(), read: false });
-      await studentUser.save();
+  try {
+    if (!['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo bộ môn mới có quyền duyệt' });
     }
-    res.status(200).json({ message: 'Đề tài đã được Lãnh đạo bộ môn phê duyệt', proposal });
-  } else {
-    if (studentUser) {
-      studentUser.notifications = studentUser.notifications || [];
-      studentUser.notifications.push({ message: `Đề tài "${proposal.topicTitle}" của bạn đã bị Lãnh đạo bộ môn trả lại.`, type: 'topic', createdAt: new Date(), read: false });
-      await studentUser.save();
+
+    const { status, comments } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
     }
-    await proposal.deleteOne();
-    res.status(200).json({ message: 'Đề tài đã bị trả lại và xóa khỏi hệ thống' });
+
+    const proposal = await TopicProposal.findById(req.params.id);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
+
+    const studentUser = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
+
+    if (status === 'approved') {
+      // Tìm Lãnh đạo khoa cùng Khoa với học viên
+      const facultyLeader = await User.findOne({
+        role: 'Lãnh đạo khoa',
+        'userInfo.faculty': proposal.studentFaculty
+      });
+
+      if (!facultyLeader) {
+        return res.status(400).json({ 
+          message: `Không tìm thấy Lãnh đạo khoa của Khoa "${proposal.studentFaculty}". Vui lòng liên hệ quản trị viên.` 
+        });
+      }
+
+      proposal.status = 'waiting_faculty_leader_approval';
+      proposal.headComments = comments;
+      proposal.headReviewedAt = new Date();
+      proposal.facultyLeaderId = facultyLeader._id;
+      await proposal.save();
+
+      // Thông báo cho học viên
+      if (studentUser) {
+        studentUser.notifications = studentUser.notifications || [];
+        studentUser.notifications.push({ 
+          message: `Đề tài "${proposal.topicTitle}" đã được Lãnh đạo bộ môn phê duyệt và đang chờ Lãnh đạo khoa xem xét.`, 
+          type: 'topic', 
+          createdAt: new Date(), 
+          read: false 
+        });
+        await studentUser.save();
+      }
+
+      // Thông báo cho Lãnh đạo khoa
+      facultyLeader.notifications = facultyLeader.notifications || [];
+      facultyLeader.notifications.push({
+        message: `Đề tài "${proposal.topicTitle}" của học viên ${proposal.studentName} (${proposal.studentId}) cần phê duyệt.`,
+        type: 'topic',
+        createdAt: new Date(),
+        read: false
+      });
+      await facultyLeader.save();
+
+      res.status(200).json({ 
+        message: 'Đã phê duyệt đề tài và chuyển đến Lãnh đạo khoa', 
+        proposal 
+      });
+    } else {
+      // Từ chối
+      proposal.status = 'rejected_by_head';
+      proposal.headComments = comments;
+      proposal.headReviewedAt = new Date();
+      await proposal.save();
+
+      if (studentUser) {
+        studentUser.notifications = studentUser.notifications || [];
+        studentUser.notifications.push({ 
+          message: `Đề tài "${proposal.topicTitle}" đã bị Lãnh đạo bộ môn từ chối. Lý do: ${comments}`, 
+          type: 'topic', 
+          createdAt: new Date(), 
+          read: false 
+        });
+        await studentUser.save();
+      }
+
+      res.status(200).json({ 
+        message: 'Đã từ chối đề tài', 
+        proposal 
+      });
+    }
+  } catch (error) {
+    console.error('Error reviewing topic by head:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
 
-// API Lãnh đạo khoa xem các đề tài đã được Lãnh đạo bộ môn phê duyệt trong Khoa mình quản lý
+// API Lãnh đạo khoa xem các đề tài đang chờ duyệt
 app.get('/faculty-leader/topic-proposals', authenticateJWT, async (req, res) => {
   try {
     if (req.user.role !== 'Lãnh đạo khoa') {
       return res.status(403).json({ message: 'Chỉ Lãnh đạo khoa mới có quyền truy cập' });
     }
 
-    const leader = await User.findById(req.user._id);
-    const managedFaculty = leader.managedMajor; // theo yêu cầu: managedMajor đại diện cho Khoa mà lãnh đạo khoa quản lý
+    // Lấy các đề tài đang chờ Lãnh đạo khoa duyệt (facultyLeaderId = current user)
+    const proposals = await TopicProposal.find({ 
+      facultyLeaderId: req.user._id, 
+      status: 'waiting_faculty_leader_approval' 
+    }).sort({ submittedAt: -1 });
 
-    if (!managedFaculty) {
-      return res.status(400).json({ message: 'Chưa cấu hình Khoa quản lý cho Lãnh đạo khoa' });
+    res.status(200).json(proposals);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API Lãnh đạo khoa duyệt hoặc từ chối đề tài
+app.put('/faculty-leader/review-topic/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Lãnh đạo khoa') {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo khoa mới có quyền duyệt' });
     }
 
-    // Lấy tất cả đề tài approved_by_head và head thuộc Khoa quản lý
-    const proposals = await TopicProposal.find({ status: 'approved_by_head' })
-      .populate('headId', 'userInfo.fullName userInfo.faculty managedDepartment')
-      .sort({ submittedAt: -1 });
+    const { status, comments } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
+    }
 
-    const filtered = proposals.filter(p => p.headId && p.headId.userInfo && p.headId.userInfo.faculty === managedFaculty);
+    const proposal = await TopicProposal.findById(req.params.id);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
 
-    res.status(200).json(filtered);
+    // Kiểm tra quyền
+    if (proposal.facultyLeaderId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Bạn không có quyền duyệt đề tài này' });
+    }
+
+    const studentUser = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
+
+    if (status === 'approved') {
+      proposal.status = 'approved_by_faculty_leader';
+      proposal.facultyLeaderComments = comments;
+      proposal.facultyLeaderReviewedAt = new Date();
+      await proposal.save();
+
+      // Thông báo cho học viên
+      if (studentUser) {
+        studentUser.notifications = studentUser.notifications || [];
+        studentUser.notifications.push({ 
+          message: `Đề tài "${proposal.topicTitle}" đã được Lãnh đạo khoa phê duyệt cuối cùng. Chúc mừng!`, 
+          type: 'topic', 
+          createdAt: new Date(), 
+          read: false 
+        });
+        await studentUser.save();
+      }
+
+      res.status(200).json({ 
+        message: 'Đã phê duyệt đề tài', 
+        proposal 
+      });
+    } else {
+      // Từ chối
+      proposal.status = 'rejected_by_faculty_leader';
+      proposal.facultyLeaderComments = comments;
+      proposal.facultyLeaderReviewedAt = new Date();
+      await proposal.save();
+
+      if (studentUser) {
+        studentUser.notifications = studentUser.notifications || [];
+        studentUser.notifications.push({ 
+          message: `Đề tài "${proposal.topicTitle}" đã bị Lãnh đạo khoa từ chối. Lý do: ${comments}`, 
+          type: 'topic', 
+          createdAt: new Date(), 
+          read: false 
+        });
+        await studentUser.save();
+      }
+
+      res.status(200).json({ 
+        message: 'Đã từ chối đề tài', 
+        proposal 
+      });
+    }
   } catch (error) {
+    console.error('Error reviewing topic by faculty leader:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
@@ -1362,13 +1626,38 @@ app.post('/student/propose-topic', authenticateJWT, async (req, res) => {
     const proposal = new TopicProposal({
       studentId: student.studentInfo?.studentId || student.username,
       studentName: student.studentInfo?.fullName || student.username,
+      studentFaculty: student.studentInfo?.faculty,
+      studentMajor: student.studentInfo?.major,
       topicTitle,
       content,
       primarySupervisor,
-      secondarySupervisor
+      primarySupervisorName: primary.userInfo?.fullName,
+      secondarySupervisor,
+      secondarySupervisorName: secondary?.userInfo?.fullName
     });
 
     await proposal.save();
+
+    // Gửi thông báo cho cả 2 giảng viên
+    primary.notifications = primary.notifications || [];
+    primary.notifications.push({
+      message: `Học viên ${proposal.studentName} (${proposal.studentId}) đã gửi đề cương "${proposal.topicTitle}" với bạn là GVHD chính.`,
+      type: 'topic',
+      createdAt: new Date(),
+      read: false
+    });
+    await primary.save();
+
+    if (secondary) {
+      secondary.notifications = secondary.notifications || [];
+      secondary.notifications.push({
+        message: `Học viên ${proposal.studentName} (${proposal.studentId}) đã gửi đề cương "${proposal.topicTitle}" với bạn là GVHD phụ.`,
+        type: 'topic',
+        createdAt: new Date(),
+        read: false
+      });
+      await secondary.save();
+    }
 
     res.status(201).json({
       message: 'Đề xuất đề tài thành công',

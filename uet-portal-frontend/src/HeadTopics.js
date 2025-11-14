@@ -2,20 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Button, Dialog, DialogTitle, DialogContent,
-  DialogActions, TextField, Alert, Drawer, List, ListItem, ListItemText
+  DialogActions, TextField, Alert, Table, TableBody, TableCell, TableContainer, 
+  TableHead, TableRow
 } from '@mui/material';
-import logo from './logo.png';
-import HelpIcon from '@mui/icons-material/Help';
-import InfoIcon from '@mui/icons-material/Info';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import GroupIcon from '@mui/icons-material/Group';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import SettingsIcon from '@mui/icons-material/Settings';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import AppLayout from './AppLayout';
 
 function HeadTopics() {
   const [proposals, setProposals] = useState([]);
@@ -74,118 +64,29 @@ function HeadTopics() {
     navigate('/');
   };
 
+  const getStatusText = (status) => {
+    switch(status) {
+      case 'pending': return 'Đang chờ GVHD';
+      case 'waiting_head_approval': return 'Đang chờ LĐBM';
+      case 'waiting_faculty_leader_approval': return 'Đang chờ Lãnh đạo khoa';
+      default: return status;
+    }
+  };
+
   return (
-    <div className="dashboard">
-      <Drawer variant="permanent" anchor="left">
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
-          <img
-            src={logo}
-            alt="Logo"
-            style={{ width: '80px', height: '80px', objectFit: 'contain', cursor: 'pointer' }}
-            onClick={() => navigate('/dashboard')}
-          />
-        </Box>
-        <List>
-          <ListItem button onClick={() => navigate('/dashboard')}>
-            <DashboardIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Dashboard" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/profile')}>
-            <AccountCircleIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Account" />
-          </ListItem>
-          {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
-            <ListItem button onClick={() => navigate('/batches')}>
-              <GroupIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Danh sách học viên" />
-            </ListItem>
-          )}
-          {user.role === 'Quản trị viên' && (
-            <>
-              <ListItem button onClick={() => navigate('/upload')}>
-                <UploadFileIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Tải lên danh sách" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/upload-heads')}>
-                <UploadFileIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Tải lên Lãnh đạo bộ môn" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/upload-lecturers')}>
-                <UploadFileIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Tải lên danh sách giảng viên" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/topic-proposals')}>
-                <AssignmentIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Đề tài chưa được phê duyệt" />
-              </ListItem>
-            </>
-          )}
-          {user.role === 'Sinh viên' && (
-            <>
-              <ListItem button onClick={() => navigate('/propose-topic')}>
-                <AssignmentIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Đề xuất đề cương" />
-              </ListItem>
-              <ListItem button onClick={() => navigate('/faculties-info')}>
-                <InfoIcon sx={{ mr: 1 }} />
-                <ListItemText primary="Thông tin" />
-              </ListItem>
-            </>
-          )}
-          {user.role === 'Giảng viên' && (
-            <ListItem button onClick={() => navigate('/topics')}>
-              <AssignmentIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Đề xuất từ học viên" />
-            </ListItem>
-          )}
-          {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
-            <ListItem button onClick={() => navigate('/head/topics')}>
-              <AssignmentIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Đề tài chờ phê duyệt" />
-            </ListItem>
-          )}
-          {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
-            <ListItem button onClick={() => navigate('/head/statistics')}>
-              <GroupIcon sx={{ mr: 1 }} />
-              <ListItemText primary="Thống kê học viên" />
-            </ListItem>
-          )}
-          <ListItem button onClick={() => navigate('/calendar')}>
-            <CalendarMonthIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Calendar" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/settings')}>
-            <SettingsIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Setting" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/help')}>
-            <HelpIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Help" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/about')}>
-            <InfoIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Introduction" />
-          </ListItem>
-          <ListItem button onClick={() => navigate('/contact')}>
-            <ContactMailIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Contact" />
-          </ListItem>
-          <ListItem button onClick={handleLogout}>
-            <ExitToAppIcon sx={{ mr: 1 }} />
-            <ListItemText primary="Logout" />
-          </ListItem>
-        </List>
-      </Drawer>
+    <AppLayout>
       <div className="dashboard-content">
         <Box sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Đề tài chờ phê duyệt
+          <Typography variant="h5" gutterBottom>
+            Đề tài chờ phê duyệt (Lãnh đạo bộ môn)
           </Typography>
+          
           {message.text && (
-            <Alert severity={message.type} sx={{ mb: 2 }}>
+            <Alert severity={message.type} sx={{ mb: 2 }} onClose={() => setMessage({ type: '', text: '' })}>
               {message.text}
             </Alert>
           )}
+          
           {loading ? (
             <Typography>Đang tải...</Typography>
           ) : proposals.length === 0 ? (
@@ -193,59 +94,95 @@ function HeadTopics() {
               <Typography>Không có đề tài nào chờ phê duyệt.</Typography>
             </Paper>
           ) : (
-            proposals.map((proposal) => (
-              <Paper key={proposal._id} sx={{ p: 2, mb: 2 }}>
-                <Typography variant="subtitle1">
-                  Tên đề tài: {proposal.topicTitle}
-                </Typography>
-                <Typography>
-                  Học viên: {proposal.studentName} ({proposal.studentId})
-                </Typography>
-                <Typography>
-                  GVHD: {proposal.primarySupervisor}
-                  {proposal.secondarySupervisor && `, ${proposal.secondarySupervisor}`}
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => {
-                      setSelectedProposal(proposal);
-                      setDialogOpen(true);
-                    }}
-                    sx={{ mr: 1 }}
-                  >
-                    Xem chi tiết
-                  </Button>
-                </Box>
-              </Paper>
-            ))
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                    <TableCell><strong>STT</strong></TableCell>
+                    <TableCell><strong>Tên đề tài</strong></TableCell>
+                    <TableCell><strong>Học viên</strong></TableCell>
+                    <TableCell><strong>Mã HV</strong></TableCell>
+                    <TableCell><strong>Khoa</strong></TableCell>
+                    <TableCell><strong>Ngành</strong></TableCell>
+                    <TableCell><strong>GVHD chính</strong></TableCell>
+                    <TableCell><strong>GVHD phụ</strong></TableCell>
+                    <TableCell><strong>Trạng thái</strong></TableCell>
+                    <TableCell><strong>Hành động</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {proposals.map((p, idx) => (
+                    <TableRow key={p._id}>
+                      <TableCell>{idx + 1}</TableCell>
+                      <TableCell>{p.topicTitle}</TableCell>
+                      <TableCell>{p.studentName}</TableCell>
+                      <TableCell>{p.studentId}</TableCell>
+                      <TableCell>{p.studentFaculty}</TableCell>
+                      <TableCell>{p.studentMajor}</TableCell>
+                      <TableCell>{p.primarySupervisorName || p.primarySupervisor}</TableCell>
+                      <TableCell>{p.secondarySupervisorName || p.secondarySupervisor || '-'}</TableCell>
+                      <TableCell>{getStatusText(p.status)}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="primary"
+                          onClick={() => {
+                            setSelectedProposal(p);
+                            setComments('');
+                            setDialogOpen(true);
+                          }}
+                        >
+                          Xem & Duyệt
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
 
           <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
             {selectedProposal && (
               <>
-                <DialogTitle>Chi tiết đề xuất</DialogTitle>
+                <DialogTitle>Chi tiết đề cương</DialogTitle>
                 <DialogContent>
-                  <Typography variant="h6">{selectedProposal.topicTitle}</Typography>
-                  <Typography variant="body1" sx={{ mt: 2 }}>
+                  <Typography variant="h6" gutterBottom>{selectedProposal.topicTitle}</Typography>
+                  <Typography><strong>Học viên:</strong> {selectedProposal.studentName} ({selectedProposal.studentId})</Typography>
+                  <Typography><strong>Khoa:</strong> {selectedProposal.studentFaculty}</Typography>
+                  <Typography><strong>Ngành:</strong> {selectedProposal.studentMajor}</Typography>
+                  <Typography><strong>GVHD chính:</strong> {selectedProposal.primarySupervisorName || selectedProposal.primarySupervisor}</Typography>
+                  {selectedProposal.secondarySupervisor && (
+                    <Typography><strong>GVHD phụ:</strong> {selectedProposal.secondarySupervisorName || selectedProposal.secondarySupervisor}</Typography>
+                  )}
+                  <Typography sx={{ mt: 2 }}><strong>Nội dung:</strong></Typography>
+                  <Typography variant="body1" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
                     {selectedProposal.content}
                   </Typography>
+                  {selectedProposal.supervisorComments && (
+                    <>
+                      <Typography sx={{ mt: 2 }}><strong>Nhận xét của GVHD:</strong></Typography>
+                      <Typography sx={{ mt: 1 }}>{selectedProposal.supervisorComments}</Typography>
+                    </>
+                  )}
                   <TextField
                     fullWidth
                     multiline
                     rows={4}
-                    label="Nhận xét"
+                    label="Nhận xét của bạn *"
                     value={comments}
                     onChange={(e) => setComments(e.target.value)}
                     sx={{ mt: 2 }}
+                    required
                   />
                 </DialogContent>
                 <DialogActions>
-                  <Button onClick={() => handleReview('returned')} color="error">
-                    Trả lại
+                  <Button onClick={() => setDialogOpen(false)}>Hủy</Button>
+                  <Button onClick={() => handleReview('rejected')} color="error" variant="outlined">
+                    Từ chối
                   </Button>
-                  <Button onClick={() => handleReview('approved_by_head')} color="primary">
+                  <Button onClick={() => handleReview('approved')} color="primary" variant="contained">
                     Phê duyệt
                   </Button>
                 </DialogActions>
@@ -254,7 +191,7 @@ function HeadTopics() {
           </Dialog>
         </Box>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 
