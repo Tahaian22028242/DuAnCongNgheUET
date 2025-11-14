@@ -17,6 +17,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import Tooltip from '@mui/material/Tooltip';
+import MapIcon from '@mui/icons-material/Map';
 
 const AppLayout = ({ children }) => {
     const drawerWidth = 280;
@@ -180,6 +181,10 @@ const AppLayout = ({ children }) => {
                                 {drawerOpen && <ListItemText primary="Đề tài chưa được phê duyệt" />} */}
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý giảng viên" />}
+                            </ListItem>
+                            <ListItem button onClick={() => navigate('/admin/department-major-mapping')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <MapIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Ánh xạ Bộ môn - Ngành" />}
                             </ListItem>
                         </>
                     )}

@@ -125,6 +125,12 @@ function Profile() {
                 <Typography variant="body1" sx={{ mb: 1 }}>
                   <strong>Vai trò:</strong> {user.role}
                 </Typography>
+                <Typography variant="body1" sx={{ mb: 1 }}>
+                  <strong>Khoa:</strong> {profileData.userInfo?.faculty || 'N/A'}
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 1 }}>
+                  <strong>Ngành:</strong> {profileData.userInfo?.department || 'N/A'}
+                </Typography>
               </Box>
             </CardContent>
           </Card>

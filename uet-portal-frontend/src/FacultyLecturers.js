@@ -177,37 +177,6 @@ function FacultyLecturers() {
       setMessage({ type: 'error', text: 'Lỗi khi thêm thành viên.' });
     }
   };
-  // const handleEditMember = async () => {
-  //   try {
-  //     const memberId = selectedMember?._id;
-  //     if (!memberId) {
-  //       setMessage({ type: 'error', text: 'Không tìm thấy ID của thành viên' });
-  //       return;
-  //     }
-
-  //     // Sử dụng chung API lecturer cho cả giảng viên và LĐBM
-  //     const url = `http://localhost:5000/admin/lecturer/${memberId}`;
-
-  //     const res = await fetch(url, {
-  //       method: 'PUT',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       credentials: 'include',
-  //       body: JSON.stringify(memberForm)
-  //     });
-
-  //     const data = await res.json();
-  //     if (res.ok) {
-  //       setMessage({ type: 'success', text: data.message });
-  //       setEditDialogOpen(false);
-  //       fetchMembers();
-  //     } else {
-  //       setMessage({ type: 'error', text: data.message });
-  //     }
-  //   } catch (e) {
-  //     setMessage({ type: 'error', text: 'Lỗi khi sửa thành viên.' });
-  //   }
-  // };
-
   const handleEditMember = async () => {
     try {
       const memberId = selectedMember?._id;
@@ -442,21 +411,6 @@ function FacultyLecturers() {
                             <TableCell>{row.role}</TableCell>
                             {user.role === 'Quản trị viên' && (
                               <TableCell>
-                                {/* <EditIcon
-                                sx={{ cursor: 'pointer', mr: 1, color: '#1976d2' }}
-                                onClick={() => {
-                                  setSelectedMember(row);
-                                  setMemberForm({
-                                    email: row.email || '',
-                                    fullName: row.fullName || '',
-                                    department: row.department || '',
-                                    position: row.position || '',
-                                    role: row.role || 'Giảng viên',
-                                    managedMajor: row.role === 'Lãnh đạo bộ môn' || row.role === 'Chủ nhiệm bộ môn' ? (row.department || facultyName) : ''
-                                  });
-                                  setEditDialogOpen(true);
-                                }}
-                              /> */}
                                 <EditIcon
                                   sx={{ cursor: 'pointer', mr: 1, color: '#1976d2' }}
                                   onClick={() => {
@@ -529,63 +483,7 @@ function FacultyLecturers() {
             )}
 
             {/* Dialog thêm thành viên */}
-            {/* <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-              <DialogTitle>Thêm thành viên mới</DialogTitle>
-              <DialogContent>
-                <TextField
-                  label="Email"
-                  value={memberForm.email}
-                  onChange={e => setMemberForm({ ...memberForm, email: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2, mt: 1 }}
-                  required
-                />
-                <TextField
-                  label="Họ và tên"
-                  value={memberForm.fullName}
-                  onChange={e => setMemberForm({ ...memberForm, fullName: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                  required
-                />
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Vai trò</InputLabel>
-                  <Select
-                    value={memberForm.role}
-                    label="Vai trò"
-                    onChange={e => setMemberForm({ ...memberForm, role: e.target.value })}
-                  >
-                    <MenuItem value="Giảng viên">Giảng viên</MenuItem>
-                    <MenuItem value="Lãnh đạo bộ môn">Lãnh đạo bộ môn</MenuItem>
-                  </Select>
-                </FormControl>
 
-                {memberForm.role === 'Lãnh đạo bộ môn' && (
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    LĐBM sẽ quản lý ngành: <strong>{facultyName}</strong>
-                  </Alert>
-                )}
-
-                <TextField
-                  label="Bộ môn/Phòng thí nghiệm"
-                  value={memberForm.department}
-                  onChange={e => setMemberForm({ ...memberForm, department: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                />
-                <TextField
-                  label="Chức vụ"
-                  value={memberForm.position}
-                  onChange={e => setMemberForm({ ...memberForm, position: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                />
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={() => setAddDialogOpen(false)}>Hủy</Button>
-                <Button onClick={handleAddMember} variant="contained">Thêm</Button>
-              </DialogActions>
-            </Dialog> */}
             <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
               <DialogTitle>Thêm thành viên mới</DialogTitle>
               <DialogContent>
@@ -651,90 +549,6 @@ function FacultyLecturers() {
             </Dialog>
 
             {/* Dialog sửa thành viên */}
-            {/* <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-              <DialogTitle>Sửa thông tin thành viên</DialogTitle>
-              <DialogContent>
-                <Alert severity="warning" sx={{ mb: 2, mt: 1 }}>
-                  <strong>Lưu ý:</strong> Thay đổi email hoặc vai trò sẽ ảnh hưởng đến đăng nhập và phân quyền của tài khoản này.
-                </Alert>
-
-                <TextField
-                  label="Email (Username đăng nhập)"
-                  value={memberForm.email}
-                  onChange={e => setMemberForm({ ...memberForm, email: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                  required
-                  helperText="Email dùng để đăng nhập vào hệ thống"
-                />
-                <TextField
-                  label="Họ và tên"
-                  value={memberForm.fullName}
-                  onChange={e => setMemberForm({ ...memberForm, fullName: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                  required
-                />
-
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Vai trò</InputLabel>
-                  <Select
-                    value={memberForm.role}
-                    label="Vai trò"
-                    onChange={e => setMemberForm({ ...memberForm, role: e.target.value })}
-                  >
-                    <MenuItem value="Giảng viên">Giảng viên</MenuItem>
-                    <MenuItem value="Lãnh đạo bộ môn">Lãnh đạo bộ môn</MenuItem>
-                  </Select>
-                </FormControl>
-
-                {memberForm.role === 'Lãnh đạo bộ môn' && (
-                  <FormControl fullWidth sx={{ mb: 2 }}>
-                    <InputLabel>Ngành quản lý</InputLabel>
-                    <Select
-                      value={memberForm.managedDepartment}
-                      label="Ngành quản lý"
-                      onChange={e => setMemberForm({ ...memberForm, managedDepartment: e.target.value })}
-                    >
-                      {uniqueDepartments.map(d => (
-                        <MenuItem key={d} value={d}>{d}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-
-                {selectedMember?.role === 'Lãnh đạo bộ môn' && memberForm.role === 'Giảng viên' && (
-                  <Alert severity="warning" sx={{ mb: 2 }}>
-                    Chuyển từ LĐBM sang Giảng viên: Hệ thống sẽ kiểm tra xem có đề tài đang chờ duyệt không.
-                  </Alert>
-                )}
-
-                {selectedMember?.role === 'Giảng viên' && memberForm.role === 'Lãnh đạo bộ môn' && (
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    Chuyển từ Giảng viên sang LĐBM: Phải chọn ngành quản lý.
-                  </Alert>
-                )}
-
-                <TextField
-                  label="Bộ môn/Phòng thí nghiệm"
-                  value={memberForm.department}
-                  onChange={e => setMemberForm({ ...memberForm, department: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                />
-                <TextField
-                  label="Chức vụ"
-                  value={memberForm.position}
-                  onChange={e => setMemberForm({ ...memberForm, position: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                />
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={() => setEditDialogOpen(false)}>Hủy</Button>
-                <Button onClick={handleEditMember} variant="contained">Lưu</Button>
-              </DialogActions>
-            </Dialog> */}
             <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
               <DialogTitle>Sửa thông tin thành viên</DialogTitle>
               <DialogContent>
