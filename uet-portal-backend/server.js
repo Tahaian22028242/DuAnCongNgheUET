@@ -1587,6 +1587,44 @@ app.put('/faculty-leader/review-topic/:id', authenticateJWT, async (req, res) =>
   }
 });
 
+// API Lãnh đạo khoa xem TẤT CẢ đề tài trong khoa (Quản lý đề cương)
+app.get('/faculty-leader/all-proposals', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Lãnh đạo khoa') {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo khoa mới có quyền truy cập' });
+    }
+
+    const facultyName = req.user.userInfo?.faculty;
+    if (!facultyName) {
+      return res.status(400).json({ message: 'Không tìm thấy thông tin khoa' });
+    }
+
+    // Lấy TẤT CẢ đề tài của học viên trong khoa này
+    const proposals = await TopicProposal.find({
+      studentFaculty: facultyName
+    }).sort({ submittedAt: -1 });
+
+    // Tính thống kê
+    const statistics = {
+      totalProposals: proposals.length,
+      approvedProposals: proposals.filter(p => 
+        p.status === 'approved_by_faculty_leader'
+      ).length,
+      pendingProposals: proposals.filter(p => 
+        ['pending', 'approved', 'waiting_head_approval', 'approved_by_head', 'waiting_faculty_leader_approval'].includes(p.status)
+      ).length,
+      rejectedProposals: proposals.filter(p => 
+        ['rejected', 'rejected_by_head', 'rejected_by_faculty_leader'].includes(p.status)
+      ).length
+    };
+
+    res.status(200).json({ proposals, statistics });
+  } catch (error) {
+    console.error('Error fetching all proposals for faculty leader:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
 // API tạo đề xuất đề tài (thêm ràng buộc GV1 & GV2 cùng bộ môn và cùng Khoa với SV nếu có GV2)
 app.post('/student/propose-topic', authenticateJWT, async (req, res) => {
   try {
@@ -2070,7 +2108,13 @@ app.get('/faculty/:facultyName/members', authenticateJWT, async (req, res) => {
       'userInfo.faculty': facultyName
     });
 
-    console.log(`📋 Faculty ${facultyName}: ${lecturers.length} GV + ${heads.length} LĐBM`);
+    // Lấy Lãnh đạo khoa theo faculty
+    const facultyLeaders = await User.find({
+      role: 'Lãnh đạo khoa',
+      'userInfo.faculty': facultyName
+    });
+
+    console.log(`📋 Faculty ${facultyName}: ${lecturers.length} GV + ${heads.length} LĐBM + ${facultyLeaders.length} LĐKH`);
 
     const normalizeHeadRole = (r) => r.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : r.role;
 
@@ -2095,6 +2139,16 @@ app.get('/faculty/:facultyName/members', authenticateJWT, async (req, res) => {
         role: normalizeHeadRole(u),
         faculty: u.userInfo?.faculty,
         managedDepartment: u.managedDepartment
+      })),
+      ...facultyLeaders.map((u, idx) => ({
+        stt: lecturers.length + heads.length + idx + 1,
+        _id: u._id,
+        email: u.userInfo?.email || u.username,
+        fullName: u.userInfo?.fullName,
+        department: u.userInfo?.department,
+        position: u.userInfo?.position || 'Lãnh đạo khoa',
+        role: u.role,
+        faculty: u.userInfo?.faculty
       }))
     ];
 
@@ -2230,6 +2284,53 @@ app.get('/supervisor/topic-proposals', authenticateJWT, async (req, res) => {
   }
 });
 
+// API lấy lưu trữ đề cương cho học viên
+app.get('/student/topic-proposals-archive', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Sinh viên') {
+      return res.status(403).json({ message: 'Chỉ sinh viên mới có quyền truy cập' });
+    }
+
+    // Lấy thông tin sinh viên từ database
+    const student = await User.findById(req.user._id);
+    if (!student || !student.studentInfo || !student.studentInfo.studentId) {
+      return res.status(400).json({ message: 'Không tìm thấy thông tin sinh viên' });
+    }
+
+    const proposals = await TopicProposal.find({
+      studentId: student.studentInfo.studentId
+    }).sort({ submittedAt: -1 });
+
+    console.log(`📚 Student ${student.studentInfo.studentId} has ${proposals.length} proposals in archive`);
+    res.status(200).json(proposals);
+  } catch (error) {
+    console.error('Error fetching student proposals archive:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API lấy lưu trữ đề cương cho giảng viên
+app.get('/supervisor/topic-proposals-archive', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Giảng viên') {
+      return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền truy cập' });
+    }
+
+    const proposals = await TopicProposal.find({
+      $or: [
+        { primarySupervisor: req.user.username },
+        { secondarySupervisor: req.user.username }
+      ]
+    }).sort({ submittedAt: -1 });
+
+    console.log(`📚 Supervisor ${req.user.username} has ${proposals.length} proposals in archive`);
+    res.status(200).json(proposals);
+  } catch (error) {
+    console.error('Error fetching supervisor proposals archive:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
 // API đổi mật khẩu
 app.post('/change-password', authenticateJWT, async (req, res) => {
   try {
@@ -2265,21 +2366,27 @@ app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
 
     // Lấy thông tin LĐBM
     const head = await User.findById(req.user._id);
-    if (!head || !head.managedDepartment) {
+    if (!head || !head.managedMajor) {
       return res.status(404).json({ message: 'Không tìm thấy thông tin ngành quản lý' });
     }
 
-    // Lấy danh sách học viên thuộc khoa
+    console.log(`📊 LĐBM ${head.userInfo?.fullName} đang xem thống kê ngành: ${head.managedMajor}`);
+
+    // Lấy danh sách học viên thuộc NGÀNH (major) mà LĐBM quản lý
     const students = await User.find({ 
       role: 'Sinh viên',
-      'studentInfo.department': head.managedDepartment 
+      'studentInfo.major': head.managedMajor 
     }).select('studentInfo');
 
-    // Lấy danh sách đề tài của các học viên thuộc khoa
+    console.log(`📚 Tìm thấy ${students.length} học viên thuộc ngành ${head.managedMajor}`);
+
+    // Lấy danh sách đề tài của các học viên thuộc ngành
     const studentIds = students.map(student => student.studentInfo?.studentId).filter(Boolean);
     const topics = await TopicProposal.find({ 
       studentId: { $in: studentIds } 
     }).sort({ submittedAt: -1 });
+
+    console.log(`📝 Tìm thấy ${topics.length} đề tài từ các học viên này`);
 
     // Tạo map để ghép thông tin
     const topicsByStudent = {};
@@ -2295,6 +2402,7 @@ app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
       studentId: student.studentInfo?.studentId,
       fullName: student.studentInfo?.fullName,
       major: student.studentInfo?.major,
+      faculty: student.studentInfo?.faculty,
       topics: topicsByStudent[student.studentInfo?.studentId] || []
     }));
 
@@ -2308,9 +2416,15 @@ app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
         approved: topics.filter(t => t.status === 'approved').length,
         rejected: topics.filter(t => t.status === 'rejected').length,
         waiting_head_approval: topics.filter(t => t.status === 'waiting_head_approval').length,
-        approved_by_head: topics.filter(t => t.status === 'approved_by_head').length
+        approved_by_head: topics.filter(t => t.status === 'approved_by_head').length,
+        waiting_faculty_leader_approval: topics.filter(t => t.status === 'waiting_faculty_leader_approval').length,
+        approved_by_faculty_leader: topics.filter(t => t.status === 'approved_by_faculty_leader').length,
+        rejected_by_head: topics.filter(t => t.status === 'rejected_by_head').length,
+        rejected_by_faculty_leader: topics.filter(t => t.status === 'rejected_by_faculty_leader').length
       }
     };
+
+    console.log(`✅ Thống kê: ${statistics.totalStudents} học viên, ${statistics.totalTopics} đề tài`);
 
     res.status(200).json({
       major: head.managedMajor,
@@ -2318,6 +2432,7 @@ app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
       students: result
     });
   } catch (error) {
+    console.error('❌ Error in /head/students-statistics:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });

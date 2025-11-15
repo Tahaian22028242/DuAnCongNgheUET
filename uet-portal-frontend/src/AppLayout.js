@@ -194,6 +194,10 @@ const AppLayout = ({ children }) => {
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Đề xuất đề cương" />}
                             </ListItem>
+                            <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Lưu trữ đề cương" />}
+                            </ListItem>
                             <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 {/* <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin giảng viên" />} */}
@@ -214,6 +218,10 @@ const AppLayout = ({ children }) => {
                             <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Đề xuất từ học viên" />}
+                            </ListItem>
+                            <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Lưu trữ đề cương" />}
                             </ListItem>
                             <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 {/* <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
@@ -242,6 +250,10 @@ const AppLayout = ({ children }) => {
                     {user.role === 'Lãnh đạo khoa' && (
                         <>
                             <ListItem button onClick={() => navigate('/faculty-leader/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt" />}
+                            </ListItem>
+                            <ListItem button onClick={() => navigate('/faculty-leader/management')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý đề cương" />}
                             </ListItem>

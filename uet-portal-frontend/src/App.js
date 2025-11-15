@@ -22,6 +22,8 @@ import Calendar from './Calendar'; // Import the new Calendar component
 import Notifications from './Notifications'; // Import the Notifications component
 import FacultyLeaderTopics from './FacultyLeaderTopics';
 import DepartmentMajorMapping from './DepartmentMajorMapping';
+import TopicArchive from './TopicArchive';
+import FacultyLeaderManagement from './FacultyLeaderManagement';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -161,6 +163,22 @@ function App() {
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
                         <FacultyLeaderTopics />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/faculty-leader/management"
+                element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                        <FacultyLeaderManagement />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/topic-archive"
+                element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                        <TopicArchive />
                     </ProtectedRoute>
                 }
             />

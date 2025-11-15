@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Typography, Box, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, CircularProgress, Alert, Chip, Card, CardContent,
-  Grid, Accordion, AccordionSummary, AccordionDetails, Drawer, List, 
+  Grid, Accordion, AccordionSummary, AccordionDetails, Drawer, List,
   ListItem, ListItemText, Divider
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -27,6 +27,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ContactMailIcon from '@mui/icons-material/ContactMail';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import AppLayout from './AppLayout';
 
 
 function HeadStatistics() {
@@ -35,7 +36,7 @@ function HeadStatistics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [major, setMajor] = useState('');
-  
+
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
 
@@ -48,7 +49,7 @@ function HeadStatistics() {
       const response = await axios.get('http://localhost:5000/head/students-statistics', {
         withCredentials: true,
       });
-      
+
       setStatistics(response.data.statistics);
       setStudents(response.data.students);
       setMajor(response.data.major);
@@ -257,7 +258,7 @@ function HeadStatistics() {
         </Paper>
 
         {/* Danh sách học viên và đề tài */}
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
           Danh sách học viên và đề tài
         </Typography>
 
@@ -272,89 +273,48 @@ function HeadStatistics() {
             <Typography variant="subtitle1" sx={{ mb: 2, color: 'text.secondary' }}>
               Tổng cộng: {students.length} học viên
             </Typography>
-            
-            {students.map((student, index) => (
-              <Accordion key={student.studentId} sx={{ mb: 2 }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6">
-                        {student.fullName} ({student.studentId})
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Ngành: {student.major}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip
-                        label={`${student.topics.length} đề tài`}
-                        color={student.topics.length > 0 ? 'primary' : 'default'}
-                        size="small"
-                      />
-                    </Box>
-                  </Box>
-                </AccordionSummary>
-                
-                <AccordionDetails>
-                  {student.topics.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      Học viên chưa có đề tài nào.
-                    </Typography>
-                  ) : (
-                    <Box>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Danh sách đề tài:
-                      </Typography>
-                      {student.topics.map((topic, topicIndex) => (
-                        <Paper key={topic._id} sx={{ p: 2, mb: 2, bgcolor: '#f8f9fa' }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                              {topic.topicTitle}
-                            </Typography>
-                            <Chip
-                              icon={getStatusIcon(topic.status)}
-                              label={getStatusText(topic.status)}
-                              color={getStatusColor(topic.status)}
-                              size="small"
-                            />
-                          </Box>
-                          
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            <strong>Nội dung:</strong> {topic.content}
-                          </Typography>
-                          
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            <strong>GVHD chính:</strong> {topic.primarySupervisor}
-                          </Typography>
-                          
-                          {topic.secondarySupervisor && (
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                              <strong>GVHD phụ:</strong> {topic.secondarySupervisor}
-                            </Typography>
-                          )}
-                          
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            <strong>Ngày gửi:</strong> {formatDate(topic.submittedAt)}
-                          </Typography>
-                          
-                          {topic.supervisorComments && (
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                              <strong>Nhận xét GVHD:</strong> {topic.supervisorComments}
-                            </Typography>
-                          )}
-                          
-                          {topic.headComments && (
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                              <strong>Nhận xét LĐBM:</strong> {topic.headComments}
-                            </Typography>
-                          )}
-                        </Paper>
-                      ))}
-                    </Box>
+
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                    <TableCell><strong>STT</strong></TableCell>
+                    <TableCell><strong>Tên đề tài</strong></TableCell>
+                    <TableCell><strong>Học viên</strong></TableCell>
+                    <TableCell><strong>Mã HV</strong></TableCell>
+                    <TableCell><strong>Khoa</strong></TableCell>
+                    <TableCell><strong>Ngành</strong></TableCell>
+                    <TableCell><strong>GVHD chính</strong></TableCell>
+                    <TableCell><strong>GVHD phụ</strong></TableCell>
+                    <TableCell><strong>Trạng thái</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {students.flatMap((student, studentIndex) => 
+                    student.topics.map((topic, topicIndex) => (
+                      <TableRow key={`${student.studentId}-${topic._id}`} hover>
+                        <TableCell>{studentIndex + topicIndex + 1}</TableCell>
+                        <TableCell>{topic.topicTitle}</TableCell>
+                        <TableCell>{student.fullName}</TableCell>
+                        <TableCell>{student.studentId}</TableCell>
+                        <TableCell>{student.faculty || topic.studentFaculty || 'N/A'}</TableCell>
+                        <TableCell>{student.major}</TableCell>
+                        <TableCell>{topic.primarySupervisorName || topic.primarySupervisor}</TableCell>
+                        <TableCell>{topic.secondarySupervisorName || topic.secondarySupervisor || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={getStatusIcon(topic.status)}
+                            label={getStatusText(topic.status)}
+                            color={getStatusColor(topic.status)}
+                            size="small"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))
                   )}
-                </AccordionDetails>
-              </Accordion>
-            ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </>
         )}
       </Box>
@@ -362,8 +322,9 @@ function HeadStatistics() {
   };
 
   return (
-    <div className="dashboard">
-      <Drawer variant="permanent" anchor="left">
+    <AppLayout>
+      <div className="dashboard">
+        {/* <Drawer variant="permanent" anchor="left">
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
           <img
             src={logo}
@@ -462,11 +423,13 @@ function HeadStatistics() {
             <ListItemText primary="Logout" />
           </ListItem>
         </List>
-      </Drawer>
-      <div className="dashboard-content">
-        {content()}
+      </Drawer> */}
+        <div className="dashboard-content">
+          {content()}
+        </div>
       </div>
-    </div>
+
+    </AppLayout>
   );
 }
 
