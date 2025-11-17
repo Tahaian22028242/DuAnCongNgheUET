@@ -30,6 +30,10 @@ function TopicArchive() {
         endpoint = 'http://localhost:5000/student/topic-proposals-archive';
       } else if (user.role === 'Giảng viên') {
         endpoint = 'http://localhost:5000/supervisor/topic-proposals-archive';
+      } else if (user.role === 'Lãnh đạo bộ môn') {
+        endpoint = 'http://localhost:5000/head/topic-proposals-archive';
+      } else if (user.role === 'Lãnh đạo khoa') {
+        endpoint = 'http://localhost:5000/faculty-leader/topic-proposals-archive';
       } else {
         setError('Bạn không có quyền truy cập chức năng này.');
         setLoading(false);
@@ -159,7 +163,7 @@ function TopicArchive() {
               <TableHead>
                 <TableRow sx={{ bgcolor: '#f5f5f5' }}>
                   <TableCell><strong>STT</strong></TableCell>
-                  {user.role === 'Giảng viên' && (
+                  {(user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn' || user.role === 'Lãnh đạo khoa') && (
                     <>
                       <TableCell><strong>Mã HV</strong></TableCell>
                       <TableCell><strong>Học viên</strong></TableCell>
@@ -176,7 +180,7 @@ function TopicArchive() {
                 {proposals.map((proposal, index) => (
                   <TableRow key={proposal._id} hover>
                     <TableCell>{index + 1}</TableCell>
-                    {user.role === 'Giảng viên' && (
+                    {(user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn' || user.role === 'Lãnh đạo khoa') && (
                       <>
                         <TableCell>{proposal.studentId}</TableCell>
                         <TableCell>{proposal.studentName}</TableCell>

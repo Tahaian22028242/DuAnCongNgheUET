@@ -52,7 +52,7 @@ function HeadStatistics() {
 
       setStatistics(response.data.statistics);
       setStudents(response.data.students);
-      setMajor(response.data.major);
+      setMajor(response.data.department || response.data.major); // Hiển thị bộ môn
       setLoading(false);
     } catch (err) {
       console.error('Error fetching statistics:', err);
@@ -136,7 +136,7 @@ function HeadStatistics() {
     return (
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          Thống kê học viên ngành {major}
+          Thống kê học viên - Bộ môn: {major}
         </Typography>
 
         {/* Thống kê tổng quan */}

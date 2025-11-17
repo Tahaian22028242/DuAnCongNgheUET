@@ -1393,11 +1393,36 @@ app.put('/supervisor/review-topic/:id', authenticateJWT, async (req, res) => {
 
 // API Lãnh đạo bộ môn xem các đề tài chờ duyệt
 app.get('/head/topic-proposals', authenticateJWT, async (req, res) => {
-  if (!['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
-    return res.status(403).json({ message: 'Chỉ Lãnh đạo bộ môn mới có quyền truy cập' });
+  try {
+    if (!['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo bộ môn mới có quyền truy cập' });
+    }
+    
+    const head = await User.findById(req.user._id);
+    if (!head || !head.managedDepartment) {
+      return res.status(400).json({ message: 'Không tìm thấy thông tin bộ môn quản lý' });
+    }
+    
+    // Tìm ánh xạ bộ môn -> ngành
+    const mapping = await DepartmentMajorMapping.findOne({ department: head.managedDepartment });
+    
+    let proposals = [];
+    if (mapping && mapping.majors && mapping.majors.length > 0) {
+      // Lấy đề tài chờ duyệt của các ngành thuộc bộ môn
+      proposals = await TopicProposal.find({ 
+        studentMajor: { $in: mapping.majors },
+        status: 'waiting_head_approval' 
+      });
+      console.log(`📋 LĐBM "${head.managedDepartment}" có ${proposals.length} đề tài chờ duyệt từ các ngành: ${mapping.majors.join(', ')}`);
+    } else {
+      console.log(`⚠️ Không tìm thấy ánh xạ cho bộ môn "${head.managedDepartment}"`);
+    }
+    
+    res.status(200).json(proposals);
+  } catch (error) {
+    console.error('Error fetching head proposals:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
-  const proposals = await TopicProposal.find({ headId: req.user._id, status: 'waiting_head_approval' });
-  res.status(200).json(proposals);
 });
 
 // API Lãnh đạo bộ môn duyệt hoặc từ chối đề tài
@@ -2331,6 +2356,86 @@ app.get('/supervisor/topic-proposals-archive', authenticateJWT, async (req, res)
   }
 });
 
+// API lấy lưu trữ đề cương cho Lãnh đạo bộ môn
+app.get('/head/topic-proposals-archive', authenticateJWT, async (req, res) => {
+  try {
+    console.log(`🔍 HEAD ARCHIVE - User role: ${req.user.role}, username: ${req.user.username}`);
+    
+    if (req.user.role !== 'Lãnh đạo bộ môn' && req.user.role !== 'Chủ nhiệm bộ môn') {
+      console.log(`❌ ACCESS DENIED - Role không hợp lệ: ${req.user.role}`);
+      return res.status(403).json({ message: 'Chỉ lãnh đạo bộ môn mới có quyền truy cập' });
+    }
+
+    // Lấy thông tin đầy đủ của LĐBM từ database
+    const head = await User.findById(req.user._id);
+    console.log(`📋 HEAD INFO - managedDepartment: ${head?.managedDepartment}, userInfo: ${JSON.stringify(head?.userInfo)}`);
+    
+    if (!head || !head.managedDepartment) {
+      console.log(`❌ NO MANAGED DEPARTMENT - head exists: ${!!head}, managedDepartment: ${head?.managedDepartment}`);
+      return res.status(400).json({ message: 'Không tìm thấy thông tin bộ môn quản lý' });
+    }
+
+    // Tìm ánh xạ bộ môn -> ngành từ DepartmentMajorMapping
+    const mapping = await DepartmentMajorMapping.findOne({ department: head.managedDepartment });
+    
+    let proposals = [];
+    if (mapping && mapping.majors && mapping.majors.length > 0) {
+      // Lấy đề tài của các ngành thuộc bộ môn này
+      console.log(`📚 Bộ môn "${head.managedDepartment}" quản lý các ngành: ${mapping.majors.join(', ')}`);
+      
+      proposals = await TopicProposal.find({
+        studentMajor: { $in: mapping.majors },
+        status: { 
+          $in: [
+            'approved_by_head', 
+            'rejected_by_head', 
+            'waiting_faculty_leader_approval', 
+            'approved_by_faculty_leader', 
+            'rejected_by_faculty_leader'
+          ] 
+        }
+      }).sort({ submittedAt: -1 });
+    } else {
+      console.log(`⚠️ Không tìm thấy ánh xạ cho bộ môn "${head.managedDepartment}"`);
+    }
+
+    console.log(`📚 LĐBM ${req.user.username} (bộ môn: ${head.managedDepartment}) có ${proposals.length} đề tài trong lưu trữ`);
+    res.status(200).json(proposals);
+  } catch (error) {
+    console.error('Error fetching head proposals archive:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// API lấy lưu trữ đề cương cho Lãnh đạo khoa
+app.get('/faculty-leader/topic-proposals-archive', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Lãnh đạo khoa') {
+      return res.status(403).json({ message: 'Chỉ lãnh đạo khoa mới có quyền truy cập' });
+    }
+
+    // Lấy thông tin đầy đủ của Lãnh đạo khoa từ database
+    const facultyLeader = await User.findById(req.user._id);
+    if (!facultyLeader || !facultyLeader.userInfo || !facultyLeader.userInfo.faculty) {
+      return res.status(400).json({ message: 'Không tìm thấy thông tin khoa quản lý' });
+    }
+
+    // Lấy các đề tài mà Lãnh đạo khoa đã duyệt/từ chối
+    const proposals = await TopicProposal.find({
+      studentFaculty: facultyLeader.userInfo.faculty,
+      status: { 
+        $in: ['approved_by_faculty_leader', 'rejected_by_faculty_leader']
+      }
+    }).sort({ submittedAt: -1 });
+
+    console.log(`📚 Lãnh đạo khoa ${req.user.username} (khoa: ${facultyLeader.userInfo.faculty}) có ${proposals.length} đề tài trong lưu trữ`);
+    res.status(200).json(proposals);
+  } catch (error) {
+    console.error('Error fetching faculty leader proposals archive:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
 // API đổi mật khẩu
 app.post('/change-password', authenticateJWT, async (req, res) => {
   try {
@@ -2360,25 +2465,51 @@ app.post('/change-password', authenticateJWT, async (req, res) => {
 // API LĐBM xem thống kê học viên và đề tài thuộc ngành quản lý
 app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
   try {
-    if (req.user.role !== 'Lãnh đạo bộ môn') {
+    console.log(`🔍 HEAD STATISTICS - User role: ${req.user.role}, username: ${req.user.username}`);
+    
+    if (req.user.role !== 'Lãnh đạo bộ môn' && req.user.role !== 'Chủ nhiệm bộ môn') {
+      console.log(`❌ ACCESS DENIED - Role không hợp lệ: ${req.user.role}`);
       return res.status(403).json({ message: 'Chỉ LĐBM mới có quyền truy cập' });
     }
 
     // Lấy thông tin LĐBM
     const head = await User.findById(req.user._id);
-    if (!head || !head.managedMajor) {
-      return res.status(404).json({ message: 'Không tìm thấy thông tin ngành quản lý' });
+    console.log(`📋 HEAD INFO - managedDepartment: ${head?.managedDepartment}, fullName: ${head?.userInfo?.fullName}`);
+    
+    if (!head || !head.managedDepartment) {
+      console.log(`❌ NO MANAGED DEPARTMENT - head exists: ${!!head}, managedDepartment: ${head?.managedDepartment}`);
+      return res.status(404).json({ message: 'Không tìm thấy thông tin bộ môn quản lý' });
     }
 
-    console.log(`📊 LĐBM ${head.userInfo?.fullName} đang xem thống kê ngành: ${head.managedMajor}`);
+    console.log(`📊 LĐBM ${head.userInfo?.fullName} đang xem thống kê bộ môn: ${head.managedDepartment}`);
 
-    // Lấy danh sách học viên thuộc NGÀNH (major) mà LĐBM quản lý
+    // Tìm ánh xạ bộ môn -> ngành
+    const mapping = await DepartmentMajorMapping.findOne({ department: head.managedDepartment });
+    
+    if (!mapping || !mapping.majors || mapping.majors.length === 0) {
+      console.log(`⚠️ Không tìm thấy ánh xạ cho bộ môn "${head.managedDepartment}"`);
+      return res.status(200).json({
+        department: head.managedDepartment,
+        majors: [],
+        statistics: {
+          totalStudents: 0,
+          studentsWithTopics: 0,
+          totalTopics: 0,
+          topicsByStatus: {}
+        },
+        students: []
+      });
+    }
+
+    console.log(`📚 Bộ môn "${head.managedDepartment}" quản lý các ngành: ${mapping.majors.join(', ')}`);
+
+    // Lấy danh sách học viên thuộc các NGÀNH mà bộ môn quản lý
     const students = await User.find({ 
       role: 'Sinh viên',
-      'studentInfo.major': head.managedMajor 
+      'studentInfo.major': { $in: mapping.majors }
     }).select('studentInfo');
 
-    console.log(`📚 Tìm thấy ${students.length} học viên thuộc ngành ${head.managedMajor}`);
+    console.log(`📚 Tìm thấy ${students.length} học viên thuộc các ngành: ${mapping.majors.join(', ')}`);
 
     // Lấy danh sách đề tài của các học viên thuộc ngành
     const studentIds = students.map(student => student.studentInfo?.studentId).filter(Boolean);
@@ -2427,7 +2558,8 @@ app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
     console.log(`✅ Thống kê: ${statistics.totalStudents} học viên, ${statistics.totalTopics} đề tài`);
 
     res.status(200).json({
-      major: head.managedMajor,
+      department: head.managedDepartment,
+      majors: mapping.majors,
       statistics,
       students: result
     });

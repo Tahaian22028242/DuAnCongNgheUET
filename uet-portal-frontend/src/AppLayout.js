@@ -241,6 +241,10 @@ const AppLayout = ({ children }) => {
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt" />}
                             </ListItem>
+                            <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Lưu trữ đề cương" />}
+                            </ListItem>
                             <ListItem button onClick={() => navigate('/head/statistics')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thống kê học viên" />}
@@ -252,6 +256,10 @@ const AppLayout = ({ children }) => {
                             <ListItem button onClick={() => navigate('/faculty-leader/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt" />}
+                            </ListItem>
+                            <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Lưu trữ đề cương" />}
                             </ListItem>
                             <ListItem button onClick={() => navigate('/faculty-leader/management')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
