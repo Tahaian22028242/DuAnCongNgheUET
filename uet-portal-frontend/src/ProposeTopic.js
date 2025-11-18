@@ -325,29 +325,16 @@
 
 // export default ProposeTopic;
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography, Box, Paper, TextField, Button, Alert,
-  Drawer, List, ListItem, ListItemText, Autocomplete,
-  Grid, CircularProgress
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import axios from 'axios';
 import './Dashboard.css';
-import logo from './logo.png';
-import HelpIcon from '@mui/icons-material/Help';
-import InfoIcon from '@mui/icons-material/Info';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import GroupIcon from '@mui/icons-material/Group';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import SettingsIcon from '@mui/icons-material/Settings';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import App from './App';
 import AppLayout from './AppLayout';
 
 function ProposeTopic() {
@@ -357,10 +344,18 @@ function ProposeTopic() {
     primarySupervisor: null,
     secondarySupervisor: null
   });
+  const [file, setFile] = useState(null);
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [supervisorsLoading, setSupervisorsLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    } else {
+      setFile(null);
+    }
+  };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
@@ -406,20 +401,27 @@ function ProposeTopic() {
       setMessage({ type: 'error', text: 'Vui lòng chọn giảng viên hướng dẫn chính.' });
       return;
     }
+    if (!file) {
+      setMessage({ type: 'error', text: 'Vui lòng chọn file đính kèm.' });
+      return;
+    }
 
     setLoading(true);
     try {
-      const proposalData = {
-        topicTitle: formData.topicTitle.trim(),
-        content: formData.content.trim(),
-        primarySupervisor: formData.primarySupervisor.username,
-        secondarySupervisor: formData.secondarySupervisor?.username || ''
-      };
+      const form = new FormData();
+      form.append('topicTitle', formData.topicTitle.trim());
+      form.append('content', formData.content.trim());
+      form.append('primarySupervisor', formData.primarySupervisor.username);
+      form.append('secondarySupervisor', formData.secondarySupervisor?.username || '');
+      form.append('file', file);
 
       const response = await axios.post(
         'http://localhost:5000/student/propose-topic',
-        proposalData,
-        { withCredentials: true }
+        form,
+        {
+          withCredentials: true,
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
       );
 
       setMessage({ type: 'success', text: 'Đề xuất đề tài thành công! Vui lòng chờ giảng viên phê duyệt.' });
@@ -431,6 +433,7 @@ function ProposeTopic() {
         primarySupervisor: null,
         secondarySupervisor: null
       });
+      setFile(null);
 
     } catch (err) {
       console.error('Error submitting proposal:', err);
@@ -590,7 +593,19 @@ function ProposeTopic() {
                     onChange={(e) => handleInputChange('content', e.target.value)}
                     placeholder="Mô tả chi tiết về đề tài, mục tiêu, phương pháp thực hiện..."
                   />
-
+                  {/* File đính kèm nếu có - inline label and input */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="subtitle1" sx={{ mb: 0, mr: 1 }}>
+                      Tài liệu đính kèm (nếu có):
+                    </Typography>
+                    <input
+                      id="file-input"
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={handleFileChange}
+                      style={{ marginBottom: 0 }}
+                    />
+                  </Box>
                   {/* Giảng viên hướng dẫn chính - Hàng 3 */}
                   <Autocomplete
                     fullWidth
@@ -635,7 +650,7 @@ function ProposeTopic() {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label="Giảng viên hướng dẫn phụ (tùy chọn)"
+                        label="Giảng viên đồng hướng dẫn (tùy chọn)"
                         variant="outlined"
                         placeholder="Tìm và chọn giảng viên..."
                         sx={{ minHeight: '56px' }}

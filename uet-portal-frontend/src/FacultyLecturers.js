@@ -267,7 +267,7 @@ function FacultyLecturers() {
                     Danh sách giảng viên & CNBM
                   </Typography>
                   <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-                    Ngành: {facultyName}
+                    Khoa: {facultyName}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     Tổng số thành viên: <strong>{members.length}</strong>

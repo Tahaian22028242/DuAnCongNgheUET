@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "scripts": {
+    "start-all": "concurrently \"cd uet-portal-backend && npm run dev\" \"cd uet-portal-frontend && npm start\""
+  }
+}
