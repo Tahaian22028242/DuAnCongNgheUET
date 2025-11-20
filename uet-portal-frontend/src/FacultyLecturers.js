@@ -292,7 +292,7 @@ function FacultyLecturers() {
           <Box sx={{ p: 3 }}>
             <Box sx={{ position: 'sticky', top: 0, paddingBottom: 0, backgroundColor: 'white', zIndex: 20, boxShadow: 2, pb: 2, mb: 2 }}>
               <Typography variant="h4" gutterBottom>
-                Danh sách giảng viên & LĐBM - Ngành: {facultyName}
+                Danh sách giảng viên & LĐBM - Khoa: {facultyName}
               </Typography>
 
               {/* DEBUG INFO */}

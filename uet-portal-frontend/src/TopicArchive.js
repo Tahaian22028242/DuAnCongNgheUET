@@ -3,8 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import {
   Typography, Box, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, CircularProgress, Alert, Chip, Dialog, DialogTitle,
-  DialogContent, DialogActions, Button
+  DialogContent, DialogActions, Button, IconButton, TextField, List, ListItem,
+  ListItemText, ListItemSecondaryAction, Tooltip
 } from '@mui/material';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import DownloadIcon from '@mui/icons-material/Download';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
 import axios from 'axios';
 import { format } from 'date-fns';
 import AppLayout from './AppLayout';
@@ -15,6 +23,14 @@ function TopicArchive() {
   const [error, setError] = useState('');
   const [selectedProposal, setSelectedProposal] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [fileDescription, setFileDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [outlineDialogOpen, setOutlineDialogOpen] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewComments, setReviewComments] = useState('');
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
@@ -122,6 +138,205 @@ function TopicArchive() {
     setSelectedProposal(null);
   };
 
+  const handleOpenUploadDialog = (proposal) => {
+    setSelectedProposal(proposal);
+    setUploadDialogOpen(true);
+    setSelectedFiles([]);
+    setFileDescription('');
+  };
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedFiles(files);
+  };
+
+  const handleUploadFiles = async () => {
+    if (selectedFiles.length === 0) {
+      setMessage({ type: 'error', text: 'Vui lòng chọn ít nhất một file' });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      selectedFiles.forEach(file => {
+        formData.append('outlineFiles', file);
+      });
+      formData.append('description', fileDescription);
+
+      await axios.post(
+        `http://localhost:5000/student/upload-outline/${selectedProposal._id}`,
+        formData,
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      setMessage({ type: 'success', text: 'Upload file đề cương thành công!' });
+      setUploadDialogOpen(false);
+      fetchProposals(); // Refresh data
+    } catch (err) {
+      console.error('Error uploading files:', err);
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Lỗi khi upload file đề cương'
+      });
+    }
+    setUploading(false);
+  };
+
+  const handleViewOutline = (proposal) => {
+    setSelectedProposal(proposal);
+    setOutlineDialogOpen(true);
+  };
+
+  const handleDownloadFile = async (filename, originalName) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/download-outline/${selectedProposal._id}/${filename}`,
+        {
+          withCredentials: true,
+          responseType: 'blob'
+        }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', originalName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Error downloading file:', err);
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Lỗi khi tải file'
+      });
+    }
+  };
+
+  const handleDeleteFile = async (filename) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa file này?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(
+        `http://localhost:5000/delete-outline/${selectedProposal._id}/${filename}`,
+        { withCredentials: true }
+      );
+
+      setMessage({ type: 'success', text: 'Đã xóa file thành công' });
+      fetchProposals(); // Refresh data
+      
+      // Update selected proposal
+      const updatedProposal = { 
+        ...selectedProposal, 
+        outlineFiles: selectedProposal.outlineFiles.filter(f => f.filename !== filename)
+      };
+      setSelectedProposal(updatedProposal);
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Lỗi khi xóa file'
+      });
+    }
+  };
+
+  const handleOpenReviewDialog = (proposal, action) => {
+    setSelectedProposal(proposal);
+    setReviewDialogOpen(true);
+    setReviewComments('');
+  };
+
+  const handleReviewOutline = async (status) => {
+    if (!reviewComments.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập nhận xét' });
+      return;
+    }
+
+    try {
+      await axios.put(
+        `http://localhost:5000/supervisor/review-outline/${selectedProposal._id}`,
+        {
+          status,
+          comments: reviewComments
+        },
+        { withCredentials: true }
+      );
+
+      setMessage({ 
+        type: 'success', 
+        text: `Đã ${status === 'approved' ? 'phê duyệt' : 'từ chối'} đề cương` 
+      });
+      setReviewDialogOpen(false);
+      setOutlineDialogOpen(false);
+      fetchProposals();
+    } catch (err) {
+      console.error('Error reviewing outline:', err);
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Lỗi khi phê duyệt đề cương'
+      });
+    }
+  };
+
+  const handleSupervisorUploadFiles = async () => {
+    if (selectedFiles.length === 0) {
+      setMessage({ type: 'error', text: 'Vui lòng chọn ít nhất một file' });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      selectedFiles.forEach(file => {
+        formData.append('outlineFiles', file);
+      });
+      formData.append('description', fileDescription);
+
+      await axios.post(
+        `http://localhost:5000/supervisor/manage-outline/${selectedProposal._id}`,
+        formData,
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      setMessage({ type: 'success', text: 'Upload file thành công!' });
+      setSelectedFiles([]);
+      setFileDescription('');
+      fetchProposals(); // Refresh data
+      
+      // Update dialog
+      const response = await axios.get(
+        user.role === 'Sinh viên' 
+          ? 'http://localhost:5000/student/topic-proposals-archive'
+          : 'http://localhost:5000/supervisor/topic-proposals-archive',
+        { withCredentials: true }
+      );
+      const updated = response.data.find(p => p._id === selectedProposal._id);
+      if (updated) {
+        setSelectedProposal(updated);
+      }
+    } catch (err) {
+      console.error('Error uploading files:', err);
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Lỗi khi upload file'
+      });
+    }
+    setUploading(false);
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -173,6 +388,7 @@ function TopicArchive() {
                   <TableCell><strong>GVHD chính</strong></TableCell>
                   <TableCell><strong>GVHD phụ</strong></TableCell>
                   <TableCell><strong>Trạng thái</strong></TableCell>
+                  <TableCell><strong>Đề cương</strong></TableCell>
                   <TableCell><strong>Hành động</strong></TableCell>
                 </TableRow>
               </TableHead>
@@ -195,6 +411,49 @@ function TopicArchive() {
                         color={getStatusColor(proposal.status)}
                         size="small"
                       />
+                    </TableCell>
+                    <TableCell>
+                      {user.role === 'Sinh viên' && 
+                       proposal.status !== 'pending' && 
+                       proposal.status !== 'rejected' && 
+                       proposal.outlineStatus !== 'approved' && (
+                        <Tooltip title="Upload đề cương">
+                          <IconButton 
+                            color="primary" 
+                            onClick={() => handleOpenUploadDialog(proposal)}
+                            size="small"
+                          >
+                            <UploadFileIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {(proposal.outlineFiles && proposal.outlineFiles.length > 0) && (
+                        // Học viên, GVHD 1, GVHD 2 luôn xem được
+                        // LĐBM và Lãnh đạo khoa chỉ xem được khi outline đã được phê duyệt
+                        ((user.role === 'Sinh viên') ||
+                         (user.role === 'Giảng viên' && (user.username === proposal.primarySupervisor || user.username === proposal.secondarySupervisor)) ||
+                         ((user.role === 'Lãnh đạo bộ môn' || user.role === 'Lãnh đạo khoa') && proposal.outlineStatus === 'approved')
+                        ) && (
+                          <Tooltip title="Xem file đề cương">
+                            <IconButton 
+                              color="info" 
+                              onClick={() => handleViewOutline(proposal)}
+                              size="small"
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )
+                      )}
+                      {proposal.outlineStatus === 'approved' && (
+                        <Chip label="Đã phê duyệt" color="success" size="small" sx={{ ml: 1 }} />
+                      )}
+                      {proposal.outlineStatus === 'pending_review' && (
+                        <Chip label="Chờ phê duyệt" color="warning" size="small" sx={{ ml: 1 }} />
+                      )}
+                      {proposal.outlineStatus === 'rejected' && (
+                        <Chip label="Bị từ chối" color="error" size="small" sx={{ ml: 1 }} />
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -278,6 +537,274 @@ function TopicArchive() {
             <Button onClick={handleCloseDialog}>Đóng</Button>
           </DialogActions>
         </Dialog>
+
+        {/* Dialog Upload file đề cương (Học viên) */}
+        <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Upload file đề cương</DialogTitle>
+          <DialogContent>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Chỉ chấp nhận file .pdf hoặc .docx. Kích thước tối đa 10MB/file.
+            </Alert>
+
+            <Box sx={{ mb: 2 }}>
+              <Button
+                variant="contained"
+                component="label"
+                startIcon={<UploadFileIcon />}
+              >
+                Chọn file
+                <input
+                  type="file"
+                  hidden
+                  multiple
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleFileSelect}
+                />
+              </Button>
+              {selectedFiles.length > 0 && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Đã chọn {selectedFiles.length} file:
+                  </Typography>
+                  {selectedFiles.map((file, idx) => (
+                    <Typography key={idx} variant="body2">
+                      - {file.name}
+                    </Typography>
+                  ))}
+                </Box>
+              )}
+            </Box>
+
+            <TextField
+              label="Mô tả (tùy chọn)"
+              value={fileDescription}
+              onChange={(e) => setFileDescription(e.target.value)}
+              fullWidth
+              multiline
+              rows={3}
+              sx={{ mb: 2 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setUploadDialogOpen(false)}>Hủy</Button>
+            <Button 
+              onClick={handleUploadFiles} 
+              variant="contained" 
+              disabled={uploading || selectedFiles.length === 0}
+            >
+              {uploading ? 'Đang upload...' : 'Upload'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog Xem và quản lý file đề cương */}
+        <Dialog open={outlineDialogOpen} onClose={() => setOutlineDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>
+            Quản lý file đề cương
+            {selectedProposal && selectedProposal.outlineStatus === 'approved' && (
+              <Chip label="Đã phê duyệt" color="success" size="small" sx={{ ml: 2 }} />
+            )}
+          </DialogTitle>
+          <DialogContent>
+            {selectedProposal && (
+              <>
+                <Typography variant="h6" gutterBottom>
+                  Đề tài: {selectedProposal.topicTitle}
+                </Typography>
+
+                {selectedProposal.outlineComments && (
+                  <Alert severity={selectedProposal.outlineStatus === 'approved' ? 'success' : 'error'} sx={{ mb: 2 }}>
+                    <strong>Nhận xét GVHD:</strong> {selectedProposal.outlineComments}
+                  </Alert>
+                )}
+
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                  Danh sách file đã upload:
+                </Typography>
+
+                {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 ? (
+                  <List>
+                    {selectedProposal.outlineFiles.map((file, idx) => (
+                      <ListItem key={idx}>
+                        <ListItemText
+                          primary={file.originalName}
+                          secondary={
+                            <>
+                              Upload bởi: {file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên'} | 
+                              Ngày: {formatDate(file.uploadedAt)}
+                              {file.description && ` | ${file.description}`}
+                            </>
+                          }
+                        />
+                        <ListItemSecondaryAction>
+                          <Tooltip title="Tải xuống">
+                            <IconButton 
+                              edge="end" 
+                              onClick={() => handleDownloadFile(file.filename, file.originalName)}
+                              sx={{ mr: 1 }}
+                            >
+                              <DownloadIcon />
+                            </IconButton>
+                          </Tooltip>
+                          {user.role === 'Giảng viên' && 
+                           user.username === selectedProposal.primarySupervisor && 
+                           selectedProposal.outlineStatus !== 'approved' && (
+                            <Tooltip title="Xóa">
+                              <IconButton 
+                                edge="end" 
+                                onClick={() => handleDeleteFile(file.filename)}
+                                color="error"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {user.role === 'Sinh viên' && selectedProposal.outlineStatus !== 'approved' && (
+                            <Tooltip title="Xóa">
+                              <IconButton 
+                                edge="end" 
+                                onClick={() => handleDeleteFile(file.filename)}
+                                color="error"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    ))}
+                  </List>
+                ) : (
+                  <Typography color="text.secondary">Chưa có file nào.</Typography>
+                )}
+
+                {/* GVHD chính có thể upload thêm file */}
+                {user.role === 'Giảng viên' && 
+                 user.username === selectedProposal.primarySupervisor && 
+                 selectedProposal.outlineStatus !== 'approved' && (
+                  <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Upload thêm file (GVHD):
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<UploadFileIcon />}
+                      size="small"
+                      sx={{ mb: 1 }}
+                    >
+                      Chọn file
+                      <input
+                        type="file"
+                        hidden
+                        multiple
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleFileSelect}
+                      />
+                    </Button>
+                    {selectedFiles.length > 0 && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Đã chọn: {selectedFiles.map(f => f.name).join(', ')}
+                        </Typography>
+                      </Box>
+                    )}
+                    <TextField
+                      label="Mô tả"
+                      value={fileDescription}
+                      onChange={(e) => setFileDescription(e.target.value)}
+                      fullWidth
+                      size="small"
+                      sx={{ mb: 1 }}
+                    />
+                    <Button 
+                      onClick={handleSupervisorUploadFiles}
+                      variant="contained"
+                      size="small"
+                      disabled={uploading || selectedFiles.length === 0}
+                    >
+                      {uploading ? 'Đang upload...' : 'Upload'}
+                    </Button>
+                  </Box>
+                )}
+
+                {/* GVHD chính phê duyệt/từ chối */}
+                {user.role === 'Giảng viên' && 
+                 user.username === selectedProposal.primarySupervisor && 
+                 selectedProposal.outlineStatus === 'pending_review' && (
+                  <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<CheckCircleIcon />}
+                      onClick={() => handleOpenReviewDialog(selectedProposal, 'approved')}
+                    >
+                      Phê duyệt đề cương
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<CancelIcon />}
+                      onClick={() => handleOpenReviewDialog(selectedProposal, 'rejected')}
+                    >
+                      Từ chối
+                    </Button>
+                  </Box>
+                )}
+              </>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOutlineDialogOpen(false)}>Đóng</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog Phê duyệt/Từ chối đề cương */}
+        <Dialog open={reviewDialogOpen} onClose={() => setReviewDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>
+            {reviewDialogOpen ? 'Nhận xét về đề cương' : ''}
+          </DialogTitle>
+          <DialogContent>
+            <TextField
+              label="Nhận xét"
+              value={reviewComments}
+              onChange={(e) => setReviewComments(e.target.value)}
+              fullWidth
+              multiline
+              rows={4}
+              required
+              sx={{ mt: 1 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setReviewDialogOpen(false)}>Hủy</Button>
+            <Button 
+              onClick={() => handleReviewOutline('approved')} 
+              variant="contained" 
+              color="success"
+            >
+              Phê duyệt
+            </Button>
+            <Button 
+              onClick={() => handleReviewOutline('rejected')} 
+              variant="contained" 
+              color="error"
+            >
+              Từ chối
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Message snackbar */}
+        {message.text && (
+          <Alert 
+            severity={message.type} 
+            sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999 }}
+            onClose={() => setMessage({ type: '', text: '' })}
+          >
+            {message.text}
+          </Alert>
+        )}
       </Box>
     </AppLayout>
   );

@@ -109,7 +109,23 @@ const topicProposalSchema = new mongoose.Schema({
   headReviewedAt: { type: Date },
   facultyLeaderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Lãnh đạo khoa
   facultyLeaderComments: { type: String },
-  facultyLeaderReviewedAt: { type: Date }
+  facultyLeaderReviewedAt: { type: Date },
+  // File đề cương
+  outlineFiles: [{
+    filename: String,
+    originalName: String,
+    path: String,
+    uploadedBy: String, // 'student' hoặc 'supervisor'
+    uploadedAt: { type: Date, default: Date.now },
+    description: String
+  }],
+  outlineStatus: {
+    type: String,
+    enum: ['not_uploaded', 'pending_review', 'approved', 'rejected'],
+    default: 'not_uploaded'
+  },
+  outlineComments: { type: String }, // Nhận xét của GVHD về file đề cương
+  outlineReviewedAt: { type: Date }
 });
 
 const TopicProposal = mongoose.model('TopicProposal', topicProposalSchema);
@@ -229,6 +245,41 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
+// Cấu hình multer riêng cho file đề cương (chỉ chấp nhận .pdf và .docx)
+const outlineStorage = multer.diskStorage({
+  destination: './uploads/outlines/',
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  },
+});
+
+const outlineUpload = multer({ 
+  storage: outlineStorage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ chấp nhận file .pdf hoặc .docx'));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  }
+});
+
+// Tạo thư mục uploads/outlines nếu chưa tồn tại
+const outlinesDir = './uploads/outlines';
+if (!fs.existsSync(outlinesDir)) {
+  fs.mkdirSync(outlinesDir, { recursive: true });
+  console.log('✅ Created uploads/outlines directory');
+}
 
 // API cho Admin nhập danh sách học viên và tự động tạo tài khoản
 app.post('/admin/upload-students', authenticateJWT, upload.single('excelFile'), async (req, res) => {
@@ -1403,7 +1454,7 @@ app.get('/head/topic-proposals', authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: 'Không tìm thấy thông tin bộ môn quản lý' });
     }
     
-    // Tìm ánh xạ bộ môn -> ngành
+    // Tìm ánh xạ bộ môn -> ngành từ DepartmentMajorMapping
     const mapping = await DepartmentMajorMapping.findOne({ department: head.managedDepartment });
     
     let proposals = [];
@@ -2734,6 +2785,342 @@ app.delete('/admin/department-major-mapping/:id', authenticateJWT, async (req, r
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
+
+// ==================== OUTLINE FILE UPLOAD APIs ====================
+
+// API: Học viên upload file đề cương (chỉ khi đề tài đã được GVHD phê duyệt)
+app.post('/student/upload-outline/:proposalId', authenticateJWT, outlineUpload.array('outlineFiles', 10), async (req, res) => {
+  try {
+    if (req.user.role !== 'Sinh viên') {
+      return res.status(403).json({ message: 'Chỉ học viên mới có quyền upload đề cương' });
+    }
+
+    const { description } = req.body;
+    const files = req.files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ message: 'Vui lòng chọn ít nhất một file' });
+    }
+
+    const proposal = await TopicProposal.findById(req.params.proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
+
+    // Kiểm tra xem học viên có phải là chủ đề tài không
+    const student = await User.findById(req.user._id);
+    if (proposal.studentId !== student.studentInfo.studentId) {
+      return res.status(403).json({ message: 'Bạn không có quyền upload đề cương cho đề tài này' });
+    }
+
+    // Chỉ cho phép upload khi đề tài đã được GVHD phê duyệt (không còn pending hoặc rejected)
+    if (proposal.status === 'pending') {
+      return res.status(400).json({ message: 'Đề tài chưa được giảng viên hướng dẫn phê duyệt' });
+    }
+
+    if (proposal.status === 'rejected') {
+      return res.status(400).json({ message: 'Đề tài đã bị từ chối, không thể upload đề cương' });
+    }
+
+    // Không cho phép upload lại nếu đã được phê duyệt
+    if (proposal.outlineStatus === 'approved') {
+      return res.status(400).json({ message: 'Đề cương đã được phê duyệt, không thể upload lại' });
+    }
+
+    // Thêm file vào danh sách
+    const newFiles = files.map(file => ({
+      filename: file.filename,
+      originalName: file.originalname,
+      path: file.path,
+      uploadedBy: 'student',
+      uploadedAt: new Date(),
+      description: description || ''
+    }));
+
+    proposal.outlineFiles = proposal.outlineFiles || [];
+    proposal.outlineFiles.push(...newFiles);
+    proposal.outlineStatus = 'pending_review';
+
+    await proposal.save();
+
+    // Thông báo cho cả 2 giảng viên hướng dẫn
+    const primarySupervisor = await User.findOne({ username: proposal.primarySupervisor });
+    if (primarySupervisor) {
+      primarySupervisor.notifications = primarySupervisor.notifications || [];
+      primarySupervisor.notifications.push({
+        message: `Học viên ${proposal.studentName} (${proposal.studentId}) đã upload file đề cương cho đề tài "${proposal.topicTitle}"`,
+        type: 'topic',
+        createdAt: new Date(),
+        read: false
+      });
+      await primarySupervisor.save();
+    }
+
+    if (proposal.secondarySupervisor) {
+      const secondarySupervisor = await User.findOne({ username: proposal.secondarySupervisor });
+      if (secondarySupervisor) {
+        secondarySupervisor.notifications = secondarySupervisor.notifications || [];
+        secondarySupervisor.notifications.push({
+          message: `Học viên ${proposal.studentName} (${proposal.studentId}) đã upload file đề cương cho đề tài "${proposal.topicTitle}"`,
+          type: 'topic',
+          createdAt: new Date(),
+          read: false
+        });
+        await secondarySupervisor.save();
+      }
+    }
+
+    res.json({ 
+      message: 'Upload file đề cương thành công',
+      files: newFiles
+    });
+
+  } catch (error) {
+    console.error('Error uploading outline:', error);
+    res.status(500).json({ message: 'Lỗi server khi upload file đề cương', error: error.message });
+  }
+});
+
+// API: GVHD chính chỉnh sửa file đề cương (upload thêm hoặc xóa file)
+app.post('/supervisor/manage-outline/:proposalId', authenticateJWT, outlineUpload.array('outlineFiles', 10), async (req, res) => {
+  try {
+    if (req.user.role !== 'Giảng viên') {
+      return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền chỉnh sửa đề cương' });
+    }
+
+    const { description, deleteFiles } = req.body;
+    const files = req.files;
+    
+    const proposal = await TopicProposal.findById(req.params.proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
+
+    // Chỉ GVHD chính mới được chỉnh sửa
+    const lecturer = await User.findOne({ username: proposal.primarySupervisor });
+    if (!lecturer || lecturer._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Chỉ giảng viên hướng dẫn chính mới có quyền chỉnh sửa đề cương' });
+    }
+
+    // Không cho phép chỉnh sửa nếu đã phê duyệt outline
+    if (proposal.outlineStatus === 'approved') {
+      return res.status(400).json({ message: 'Đề cương đã được phê duyệt, không thể chỉnh sửa' });
+    }
+
+    // Xóa file nếu có
+    if (deleteFiles) {
+      const filesToDelete = JSON.parse(deleteFiles);
+      proposal.outlineFiles = proposal.outlineFiles.filter(f => !filesToDelete.includes(f.filename));
+    }
+
+    // Thêm file mới
+    if (files && files.length > 0) {
+      const newFiles = files.map(file => ({
+        filename: file.filename,
+        originalName: file.originalname,
+        path: file.path,
+        uploadedBy: 'supervisor',
+        uploadedAt: new Date(),
+        description: description || ''
+      }));
+      proposal.outlineFiles = proposal.outlineFiles || [];
+      proposal.outlineFiles.push(...newFiles);
+    }
+
+    await proposal.save();
+
+    res.json({ 
+      message: 'Cập nhật file đề cương thành công',
+      outlineFiles: proposal.outlineFiles
+    });
+
+  } catch (error) {
+    console.error('Error managing outline:', error);
+    res.status(500).json({ message: 'Lỗi server khi quản lý file đề cương', error: error.message });
+  }
+});
+
+// API: GVHD chính phê duyệt/từ chối file đề cương
+app.put('/supervisor/review-outline/:proposalId', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Giảng viên') {
+      return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền phê duyệt đề cương' });
+    }
+
+    const { status, comments } = req.body;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
+    }
+
+    const proposal = await TopicProposal.findById(req.params.proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
+
+    // Chỉ GVHD chính mới được phê duyệt
+    const lecturer = await User.findOne({ username: proposal.primarySupervisor });
+    if (!lecturer || lecturer._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Chỉ giảng viên hướng dẫn chính mới có quyền phê duyệt đề cương' });
+    }
+
+    proposal.outlineStatus = status;
+    proposal.outlineComments = comments;
+    proposal.outlineReviewedAt = new Date();
+
+    await proposal.save();
+
+    // Thông báo cho học viên
+    const student = await User.findOne({ 'studentInfo.studentId': proposal.studentId });
+    if (student) {
+      student.notifications = student.notifications || [];
+      const message = status === 'approved' 
+        ? `File đề cương của đề tài "${proposal.topicTitle}" đã được giảng viên hướng dẫn phê duyệt`
+        : `File đề cương của đề tài "${proposal.topicTitle}" bị từ chối. Lý do: ${comments}. Vui lòng tải lại file mới.`;
+      
+      student.notifications.push({
+        message,
+        type: 'topic',
+        createdAt: new Date(),
+        read: false
+      });
+      await student.save();
+    }
+
+    // Nếu phê duyệt, thông báo cho LĐBM và Lãnh đạo khoa (nếu đề tài đã được phê duyệt)
+    if (status === 'approved') {
+      // Thông báo cho LĐBM
+      if (proposal.headId) {
+        const head = await User.findById(proposal.headId);
+        if (head) {
+          head.notifications = head.notifications || [];
+          head.notifications.push({
+            message: `File đề cương của đề tài "${proposal.topicTitle}" (học viên: ${proposal.studentName}) đã được GVHD phê duyệt và sẵn sàng để xem`,
+            type: 'topic',
+            createdAt: new Date(),
+            read: false
+          });
+          await head.save();
+        }
+      }
+
+      // Thông báo cho Lãnh đạo khoa
+      if (proposal.facultyLeaderId) {
+        const facultyLeader = await User.findById(proposal.facultyLeaderId);
+        if (facultyLeader) {
+          facultyLeader.notifications = facultyLeader.notifications || [];
+          facultyLeader.notifications.push({
+            message: `File đề cương của đề tài "${proposal.topicTitle}" (học viên: ${proposal.studentName}) đã được GVHD phê duyệt và sẵn sàng để xem`,
+            type: 'topic',
+            createdAt: new Date(),
+            read: false
+          });
+          await facultyLeader.save();
+        }
+      }
+    }
+
+    res.json({ 
+      message: `Đề cương đã được ${status === 'approved' ? 'phê duyệt' : 'từ chối'}`,
+      outlineStatus: proposal.outlineStatus
+    });
+
+  } catch (error) {
+    console.error('Error reviewing outline:', error);
+    res.status(500).json({ message: 'Lỗi server khi phê duyệt đề cương', error: error.message });
+  }
+});
+
+// API: Download file đề cương
+app.get('/download-outline/:proposalId/:filename', authenticateJWT, async (req, res) => {
+  try {
+    const { proposalId, filename } = req.params;
+
+    const proposal = await TopicProposal.findById(proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
+
+    // Kiểm tra quyền truy cập
+    const student = await User.findById(req.user._id);
+    const isStudent = req.user.role === 'Sinh viên' && student.studentInfo.studentId === proposal.studentId;
+    const isPrimarySupervisor = req.user.role === 'Giảng viên' && req.user.username === proposal.primarySupervisor;
+    const isSecondarySupervisor = req.user.role === 'Giảng viên' && req.user.username === proposal.secondarySupervisor;
+    
+    // LĐBM và Lãnh đạo khoa chỉ được xem khi outline đã được GVHD phê duyệt
+    const isHead = req.user.role === 'Lãnh đạo bộ môn' && proposal.outlineStatus === 'approved';
+    const isFacultyLeader = req.user.role === 'Lãnh đạo khoa' && proposal.outlineStatus === 'approved';
+
+    if (!isStudent && !isPrimarySupervisor && !isSecondarySupervisor && !isHead && !isFacultyLeader) {
+      return res.status(403).json({ message: 'Bạn không có quyền tải file này' });
+    }
+
+    const file = proposal.outlineFiles.find(f => f.filename === filename);
+    if (!file) {
+      return res.status(404).json({ message: 'Không tìm thấy file' });
+    }
+
+    res.download(file.path, file.originalName);
+
+  } catch (error) {
+    console.error('Error downloading outline:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải file', error: error.message });
+  }
+});
+
+// API: Xóa file đề cương (chỉ người upload hoặc GVHD chính)
+app.delete('/delete-outline/:proposalId/:filename', authenticateJWT, async (req, res) => {
+  try {
+    const { proposalId, filename } = req.params;
+
+    const proposal = await TopicProposal.findById(proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
+
+    // Kiểm tra quyền xóa
+    const student = await User.findById(req.user._id);
+    const isStudent = req.user.role === 'Sinh viên' && student.studentInfo.studentId === proposal.studentId;
+    const isPrimarySupervisor = req.user.role === 'Giảng viên' && req.user.username === proposal.primarySupervisor;
+
+    if (!isStudent && !isPrimarySupervisor) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa file này' });
+    }
+
+    // Không cho phép xóa nếu đã phê duyệt
+    if (proposal.outlineStatus === 'approved' && isPrimarySupervisor) {
+      return res.status(400).json({ message: 'Đề cương đã được phê duyệt, không thể xóa file' });
+    }
+
+    const fileIndex = proposal.outlineFiles.findIndex(f => f.filename === filename);
+    if (fileIndex === -1) {
+      return res.status(404).json({ message: 'Không tìm thấy file' });
+    }
+
+    // Xóa file khỏi hệ thống
+    const file = proposal.outlineFiles[fileIndex];
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+
+    proposal.outlineFiles.splice(fileIndex, 1);
+    
+    // Nếu không còn file nào, đổi trạng thái về not_uploaded
+    if (proposal.outlineFiles.length === 0) {
+      proposal.outlineStatus = 'not_uploaded';
+    }
+
+    await proposal.save();
+
+    res.json({ message: 'Đã xóa file thành công' });
+
+  } catch (error) {
+    console.error('Error deleting outline:', error);
+    res.status(500).json({ message: 'Lỗi server khi xóa file', error: error.message });
+  }
+});
+
+// ==================== END OUTLINE FILE UPLOAD APIs ====================
 
 // Start server
 app.listen(port, () => {
