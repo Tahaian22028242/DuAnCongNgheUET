@@ -226,7 +226,7 @@ function StudentBatches() {
                                 <Grid item xs={12} sm={6} lg={4} key={batch._id}>
                                     <Card
                                         sx={{
-                                            height: '100%',
+                                            height: 'calc(100% + 16px)',
                                             borderRadius: 3,
                                             transition: 'all 0.3s ease-in-out',
                                             '&:hover': {
@@ -246,7 +246,7 @@ function StudentBatches() {
 
                                         <CardActionArea
                                             onClick={() => handleBatchClick(batch)}
-                                            sx={{ height: 'calc(100% - 6px)' }}
+                                            sx={{ height: 'calc(100%)' }}
                                         >
                                             <CardContent sx={{ p: 3, height: '100%' }}>
                                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
@@ -270,11 +270,10 @@ function StudentBatches() {
                                                     </Badge>
                                                 </Box>
 
-                                                <Box sx={{ mb: 3 }}>
+                                                <Box>
                                                     <Typography
                                                         variant="body2"
                                                         color="text.secondary"
-                                                        sx={{ mb: 1 }}
                                                     >
                                                         <strong>Quyết định:</strong> {batch.decision}
                                                     </Typography>
@@ -348,17 +347,18 @@ function StudentBatches() {
                                                             size="small"
                                                             color="error"
                                                             onClick={(e) => openDeleteBatchDialog(batch, e)}
-                                                            title="Xóa đợt học viên"
+                                                            title="Xóa đợt học viên" 
                                                             sx={{
                                                                 bgcolor: 'white',
+                                                                color: '#ff0000cc',
                                                                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                                                                 '&:hover': {
-                                                                    bgcolor: '#ffebee',
+                                                                    bgcolor: '#ff0000ff',
                                                                     boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                                                                 }
                                                             }}
                                                         >
-                                                            <DeleteIcon fontSize="small" />
+                                                            <DeleteIcon fontSize="small" variant="outlined" />
                                                         </IconButton>
                                                     </Box>
                                                 )}

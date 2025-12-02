@@ -19,7 +19,7 @@
 
 .dashboard button {
   padding: 10px 20px;
-  background-color: #ff4d4f;
+  background-color: #2e7d32;
   color: white;
   border: none;
   border-radius: 5px;
@@ -28,7 +28,7 @@
 }
 
 .dashboard button:hover {
-  background-color: #d9363e;
+  background-color: #45b74a;
 }
 
 .dashboard-content {

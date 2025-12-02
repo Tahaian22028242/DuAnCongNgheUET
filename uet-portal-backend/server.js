@@ -22,7 +22,7 @@ mongoose
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: 'http://localhost:3002',
   credentials: true,
 }));
 app.use(express.json());
@@ -187,7 +187,7 @@ app.post('/register', async (req, res) => {
 
     res.status(201).json({ message: 'Đăng ký thành công', user: { username, role } });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi đăng ký', error: error.message });
   }
 });
 // API đăng nhập
@@ -232,7 +232,7 @@ app.post('/login', async (req, res) => {
 
     res.status(200).json(responseData);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi đăng nhập', error: error.message });
   }
 });
 
@@ -261,12 +261,17 @@ const outlineUpload = multer({
     const allowedTypes = [
       'application/pdf',
       'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'application/zip',
+      'application/x-rar-compressed',
+      'image/png',
+      'image/jpeg'
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ chấp nhận file .pdf hoặc .docx'));
+      cb(new Error('Định dạng file không được phép. Vui lòng tải lên file PDF, DOCX, TXT, ZIP, RAR, PNG hoặc JPEG.'));
     }
   },
   limits: {
@@ -385,7 +390,7 @@ app.post('/admin/upload-students', authenticateJWT, upload.single('excelFile'), 
       accountsCreated: createdAccounts
     });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi tải lên danh sách học viên', error: error.message });
   }
 });
 
@@ -477,8 +482,8 @@ app.post('/admin/upload-heads', authenticateJWT, upload.single('excelFile'), asy
         if (file && file.path) {
             fs.unlink(file.path, (err) => { if (err) console.error('Lỗi xóa file:', err); });
         }
-        res.status(500).json({ message: 'Lỗi server', error: error.message });
-    }
+        res.status(500).json({ message: 'Lỗi server khi thêm lãnh đạo bộ môn', error: error.message });
+    } 
 });
 
 function getCellValue(cell) {
@@ -562,7 +567,7 @@ app.get('/students/batches', authenticateJWT, async (req, res) => {
 
     res.status(200).json(batches);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách đợt học viên', error: error.message });
   }
 });
 
@@ -574,7 +579,7 @@ app.get('/batch/:id', authenticateJWT, async (req, res) => {
     }
     res.status(200).json({ batch });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy thông tin đợt học viên', error: error.message });
   }
 });
 
@@ -605,7 +610,7 @@ app.get('/admin/heads', authenticateJWT, async (req, res) => {
       heads: headsList
     });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách Lãnh đạo bộ môn', error: error.message });
   }
 });
 
@@ -629,7 +634,7 @@ app.delete('/admin/heads/:id', authenticateJWT, async (req, res) => {
       message: `Đã xóa Lãnh đạo bộ môn ${head.userInfo?.fullName || head.username}`,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi xóa Lãnh đạo bộ môn', error: error.message });
   }
 });
 
@@ -678,7 +683,7 @@ app.put('/admin/heads/:id', authenticateJWT, async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi cập nhật thông tin Lãnh đạo bộ môn', error: error.message });
   }
 });
 
@@ -716,7 +721,7 @@ app.delete('/admin/batch/:batchId', authenticateJWT, async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting batch:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi xóa đợt học viên', error: error.message });
   }
 });
 
@@ -757,7 +762,7 @@ app.get('/batch/:id/export', authenticateJWT, async (req, res) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi xuất file danh sách học viên', error: error.message });
   }
 });
 
@@ -911,7 +916,7 @@ app.put('/admin/student/:studentId', authenticateJWT, async (req, res) => {
   } catch (error) {
     console.error('Error updating student:', error);
     res.status(500).json({ 
-      message: 'Lỗi server', 
+      message: 'Lỗi server khi cập nhật thông tin học viên', 
       error: error.message 
     });
   }
@@ -1229,7 +1234,7 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating lecturer:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi cập nhật giảng viên', error: error.message });
   }
 });
 
@@ -1295,7 +1300,7 @@ app.post('/admin/faculty/:facultyName/add-head', authenticateJWT, async (req, re
     });
   } catch (error) {
     console.error('Error adding head:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi thêm lãnh đạo bộ môn', error: error.message });
   }
 });
 
@@ -1438,7 +1443,7 @@ app.put('/supervisor/review-topic/:id', authenticateJWT, async (req, res) => {
 
   } catch (error) {
     console.error('Error reviewing topic:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi duyệt đề tài bởi giảng viên hướng dẫn', error: error.message });
   }
 });
 
@@ -1472,7 +1477,7 @@ app.get('/head/topic-proposals', authenticateJWT, async (req, res) => {
     res.status(200).json(proposals);
   } catch (error) {
     console.error('Error fetching head proposals:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách đề tài chờ duyệt của lãnh đạo bộ môn', error: error.message });
   }
 });
 
@@ -1565,7 +1570,7 @@ app.put('/head/review-topic/:id', authenticateJWT, async (req, res) => {
     }
   } catch (error) {
     console.error('Error reviewing topic by head:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi duyệt đề tài bởi lãnh đạo bộ môn', error: error.message });
   }
 });
 
@@ -1584,7 +1589,7 @@ app.get('/faculty-leader/topic-proposals', authenticateJWT, async (req, res) => 
 
     res.status(200).json(proposals);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách đề tài chờ duyệt của lãnh đạo khoa', error: error.message });
   }
 });
 
@@ -1659,7 +1664,7 @@ app.put('/faculty-leader/review-topic/:id', authenticateJWT, async (req, res) =>
     }
   } catch (error) {
     console.error('Error reviewing topic by faculty leader:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi duyệt đề tài bởi lãnh đạo khoa', error: error.message });
   }
 });
 
@@ -1697,12 +1702,124 @@ app.get('/faculty-leader/all-proposals', authenticateJWT, async (req, res) => {
     res.status(200).json({ proposals, statistics });
   } catch (error) {
     console.error('Error fetching all proposals for faculty leader:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy tất cả đề tài cho lãnh đạo khoa', error: error.message });
+  }
+});
+
+// API cập nhật/gửi lại đề xuất đề tài (khi chưa được duyệt)
+app.put('/student/resubmit-topic/:proposalId', authenticateJWT, outlineUpload.array('outlineFiles', 10), async (req, res) => {
+  try {
+    if (req.user.role !== 'Sinh viên') {
+      return res.status(403).json({ message: 'Chỉ sinh viên mới có quyền cập nhật đề tài' });
+    }
+
+    const { proposalId } = req.params;
+    const { topicTitle, content, primarySupervisor, secondarySupervisor } = req.body;
+
+    const proposal = await TopicProposal.findById(proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề xuất' });
+    }
+
+    // Check ownership
+    if (proposal.studentId !== req.user.studentInfo?.studentId && proposal.studentId !== req.user.username) {
+      return res.status(403).json({ message: 'Bạn không có quyền cập nhật đề xuất này' });
+    }
+
+    // Chỉ cho phép cập nhật khi chưa được duyệt
+    const editableStatuses = ['pending', 'rejected', 'rejected_by_head', 'rejected_by_faculty_leader'];
+    if (!editableStatuses.includes(proposal.status)) {
+      return res.status(400).json({ message: 'Đề tài đã được duyệt, không thể chỉnh sửa' });
+    }
+
+    if (!topicTitle || !content || !primarySupervisor) {
+      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+    }
+
+    const student = await User.findById(req.user._id);
+    const primary = await User.findOne({ username: primarySupervisor });
+    const secondary = secondarySupervisor ? await User.findOne({ username: secondarySupervisor }) : null;
+
+    // Ràng buộc bộ môn và khoa
+    if (!primary || primary.role !== 'Giảng viên') {
+      return res.status(400).json({ message: 'Giảng viên hướng dẫn 1 không hợp lệ' });
+    }
+    if (secondary) {
+      if (secondary.role !== 'Giảng viên') {
+        return res.status(400).json({ message: 'Giảng viên hướng dẫn 2 không hợp lệ' });
+      }
+      const sameDept = (primary.userInfo?.department || '') === (secondary.userInfo?.department || '');
+      const sameFacultyWithStudent = (primary.userInfo?.faculty || '') === (student.studentInfo?.faculty || '') && (secondary.userInfo?.faculty || '') === (student.studentInfo?.faculty || '');
+      if (!sameDept || !sameFacultyWithStudent) {
+        return res.status(400).json({ message: 'GVHD 1 và 2 phải cùng bộ môn và cùng Khoa với học viên' });
+      }
+    } else {
+      if ((primary.userInfo?.faculty || '') !== (student.studentInfo?.faculty || '')) {
+        return res.status(400).json({ message: 'GVHD 1 phải cùng Khoa với học viên' });
+      }
+    }
+
+    // Update proposal
+    proposal.topicTitle = topicTitle;
+    proposal.content = content;
+    proposal.primarySupervisor = primarySupervisor;
+    proposal.primarySupervisorName = primary.userInfo?.fullName;
+    proposal.secondarySupervisor = secondarySupervisor || '';
+    proposal.secondarySupervisorName = secondary?.userInfo?.fullName || '';
+    proposal.status = 'pending'; // Reset về pending
+    proposal.supervisorComments = '';
+    proposal.submittedAt = new Date();
+
+    // Handle new files
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      proposal.outlineFiles = proposal.outlineFiles || [];
+      req.files.forEach(f => {
+        proposal.outlineFiles.push({
+          filename: f.filename,
+          originalName: f.originalname,
+          path: f.path,
+          uploadedBy: 'student',
+          uploadedAt: new Date()
+        });
+      });
+      proposal.outlineStatus = 'pending_review';
+    }
+
+    await proposal.save();
+
+    // Send notifications
+    primary.notifications = primary.notifications || [];
+    primary.notifications.push({
+      message: `Học viên ${proposal.studentName} (${proposal.studentId}) đã gửi lại đề cương "${proposal.topicTitle}" với bạn là GVHD chính.`,
+      type: 'topic',
+      createdAt: new Date(),
+      read: false
+    });
+    await primary.save();
+
+    if (secondary) {
+      secondary.notifications = secondary.notifications || [];
+      secondary.notifications.push({
+        message: `Học viên ${proposal.studentName} (${proposal.studentId}) đã gửi lại đề cương "${proposal.topicTitle}" với bạn là GVHD phụ.`,
+        type: 'topic',
+        createdAt: new Date(),
+        read: false
+      });
+      await secondary.save();
+    }
+
+    res.status(200).json({
+      message: 'Cập nhật và gửi lại đề xuất thành công',
+      proposal: { id: proposal._id, topicTitle: proposal.topicTitle, status: proposal.status }
+    });
+  } catch (error) {
+    console.error('🚨 /student/resubmit-topic error:', error);
+    res.status(500).json({ message: 'Lỗi server khi cập nhật đề xuất', error: error.message });
   }
 });
 
 // API tạo đề xuất đề tài (thêm ràng buộc GV1 & GV2 cùng bộ môn và cùng Khoa với SV nếu có GV2)
-app.post('/student/propose-topic', authenticateJWT, async (req, res) => {
+app.post('/student/propose-topic', authenticateJWT, outlineUpload.array('outlineFiles', 10), async (req, res) => {
   try {
     if (req.user.role !== 'Sinh viên') {
       return res.status(403).json({ message: 'Chỉ sinh viên mới có quyền đề xuất đề tài' });
@@ -1733,6 +1850,7 @@ app.post('/student/propose-topic', authenticateJWT, async (req, res) => {
     } else {
       // Không có GVHD2: chỉ cần GVHD1 cùng Khoa với học viên
       if ((primary.userInfo?.faculty || '') !== (student.studentInfo?.faculty || '')) {
+        console.log('🚨 GVHD1 faculty:', primary.userInfo?.faculty, 'Student faculty:', student.studentInfo?.faculty);
         return res.status(400).json({ message: 'GVHD 1 phải cùng Khoa với học viên' });
       }
     }
@@ -1751,6 +1869,23 @@ app.post('/student/propose-topic', authenticateJWT, async (req, res) => {
     });
 
     await proposal.save();
+
+    // Nếu có files đính kèm (attachments), lưu metadata vào outlineFiles
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      proposal.outlineFiles = proposal.outlineFiles || [];
+      req.files.forEach(f => {
+        proposal.outlineFiles.push({
+          filename: f.filename,
+          originalName: f.originalname,
+          path: f.path,
+          uploadedBy: 'student',
+          uploadedAt: new Date()
+        });
+      });
+      proposal.outlineStatus = 'pending_review';
+      await proposal.save();
+      console.log(`📎 Saved ${req.files.length} attachment(s) for proposal ${proposal._id}`);
+    }
 
     // Gửi thông báo cho cả 2 giảng viên
     primary.notifications = primary.notifications || [];
@@ -1778,7 +1913,40 @@ app.post('/student/propose-topic', authenticateJWT, async (req, res) => {
       proposal: { id: proposal._id, topicTitle: proposal.topicTitle, status: proposal.status }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    // Detailed logging for debugging multipart / multer / request issues
+    try {
+      const details = {
+        errorMessage: error && error.message,
+        errorName: error && error.name,
+        errorCode: error && error.code,
+        stack: error && error.stack,
+        route: req.originalUrl,
+        method: req.method,
+        headers: {
+          'content-type': req.headers && req.headers['content-type'],
+          'content-length': req.headers && req.headers['content-length']
+        },
+        bodyKeys: req.body ? Object.keys(req.body) : [],
+        filesSummary: null,
+        user: req.user ? { id: req.user._id, username: req.user.username, role: req.user.role } : null
+      };
+
+      if (req.files) {
+        try {
+          details.filesSummary = Array.isArray(req.files)
+            ? req.files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname, mimetype: f.mimetype, size: f.size }))
+            : req.files;
+        } catch (fErr) {
+          details.filesSummary = `Error summarizing files: ${String(fErr)}`;
+        }
+      }
+
+      console.error('🚨 /student/propose-topic error:', JSON.stringify(details, null, 2));
+    } catch (logErr) {
+      console.error('Failed to log /student/propose-topic error:', logErr);
+    }
+
+    res.status(500).json({ message: 'Lỗi server khi đề xuất đề tài', error: error.message });
   }
 });
 
@@ -1865,7 +2033,7 @@ app.post('/calendar/events', authenticateJWT, async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi tạo sự kiện', error: error.message });
   }
 });
 
@@ -1940,7 +2108,7 @@ app.get('/calendar/events', authenticateJWT, async (req, res) => {
     res.status(200).json(events);
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách sự kiện', error: error.message });
   }
 });
 
@@ -2003,7 +2171,7 @@ app.put('/calendar/events/:id', authenticateJWT, async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi cập nhật sự kiện', error: error.message });
   }
 });
 
@@ -2032,7 +2200,7 @@ app.delete('/calendar/events/:id', authenticateJWT, async (req, res) => {
     res.status(200).json({ message: 'Xóa sự kiện thành công' });
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi xóa sự kiện', error: error.message });
   }
 });
 
@@ -2082,7 +2250,7 @@ app.get('/calendar/statistics', authenticateJWT, async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi thống kê sự kiện', error: error.message });
   }
 });
 
@@ -2121,7 +2289,7 @@ app.post('/calendar/auto-create-topic-events', authenticateJWT, async (req, res)
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi tạo sự kiện deadline tự động', error: error.message });
   }
 });
 
@@ -2151,7 +2319,7 @@ app.get('/auth/check', authenticateJWT, async (req, res) => {
 
     return res.status(200).json({ user: result });
   } catch (error) {
-    return res.status(500).json({ message: 'Lỗi server', error: error.message });
+    return res.status(500).json({ message: 'Lỗi server khi kiểm tra xác thực', error: error.message });
   }
 });
 
@@ -2162,12 +2330,47 @@ app.get('/faculties', authenticateJWT, async (req, res) => {
     res.json(faculties.sort());
   } catch (error) {
     console.error('Error fetching faculties:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách khoa/bộ môn', error: error.message });
+  }
+});
+
+// API Xóa dữ liệu theo Khoa (Admin) - xóa các StudentBatch liên quan và (tùy chọn) xóa tài khoản người dùng thuộc khoa
+app.delete('/admin/faculty/:facultyName', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Quản trị viên') {
+      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    }
+
+    const { facultyName } = req.params;
+    const deleteAccounts = req.query.deleteAccounts === 'true' || req.query.deleteAccounts === true;
+
+    if (!facultyName) return res.status(400).json({ message: 'Thiếu tên Khoa' });
+
+    // NOTE: Per admin request, this endpoint will NOT delete student batches.
+    // It only removes lecturer user accounts when the admin chooses the delete option.
+    let usersResult = { deletedCount: 0 };
+    if (deleteAccounts) {
+      // Delete only lecturer accounts (role === 'Giảng viên') that have userInfo.faculty matching the facultyName
+      const usersFilter = {
+        role: { $in: ['Giảng viên', 'Chủ nhiệm bộ môn', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'] },
+        'userInfo.faculty': facultyName
+      };
+      usersResult = await User.deleteMany(usersFilter);
+    }
+
+    res.status(200).json({
+      message: deleteAccounts
+        ? `Đã xóa ${usersResult.deletedCount || 0} tài khoản giảng viên thuộc Khoa ${facultyName}.` 
+        : `Không có thay đổi cho Khoa ${facultyName}. (StudentBatch không bị xóa)` ,
+      usersDeleted: usersResult.deletedCount || 0
+    });
+  } catch (error) {
+    console.error('Error deleting faculty data:', error);
+    res.status(500).json({ message: 'Lỗi server khi xóa dữ liệu theo Khoa', error: error.message });
   }
 });
 
 // Danh sách thành viên trong một khoa/bộ môn
-
 app.get('/faculty/:facultyName/members', authenticateJWT, async (req, res) => {
   const { facultyName } = req.params;
   
@@ -2231,7 +2434,7 @@ app.get('/faculty/:facultyName/members', authenticateJWT, async (req, res) => {
     res.json(members);
   } catch (error) {
     console.error('Error fetching faculty members:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách thành viên trong khoa/bộ môn', error: error.message });
   }
 });
 
@@ -2245,7 +2448,7 @@ app.get('/supervisors', authenticateJWT, async (req, res) => {
     }));
     res.status(200).json(supervisorList);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách giảng viên cho autocomplete', error: error.message });
   }
 });
 
@@ -2337,7 +2540,7 @@ app.post('/admin/upload-lecturers', authenticateJWT, upload.single('excelFile'),
     if (file && file.path) {
       fs.unlink(file.path, (err) => { if (err) console.error('Lỗi xóa file:', err); });
     }
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi tải lên danh sách giảng viên', error: error.message });
   }
 });
 // API giảng viên xem đề xuất đề tài của sinh viên
@@ -2356,7 +2559,7 @@ app.get('/supervisor/topic-proposals', authenticateJWT, async (req, res) => {
 
     res.status(200).json(proposals);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy đề xuất đề tài cho giảng viên', error: error.message });
   }
 });
 
@@ -2381,7 +2584,7 @@ app.get('/student/topic-proposals-archive', authenticateJWT, async (req, res) =>
     res.status(200).json(proposals);
   } catch (error) {
     console.error('Error fetching student proposals archive:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy lưu trữ đề cương cho sinh viên', error: error.message });
   }
 });
 
@@ -2403,7 +2606,7 @@ app.get('/supervisor/topic-proposals-archive', authenticateJWT, async (req, res)
     res.status(200).json(proposals);
   } catch (error) {
     console.error('Error fetching supervisor proposals archive:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy lưu trữ đề cương cho giảng viên', error: error.message });
   }
 });
 
@@ -2454,7 +2657,7 @@ app.get('/head/topic-proposals-archive', authenticateJWT, async (req, res) => {
     res.status(200).json(proposals);
   } catch (error) {
     console.error('Error fetching head proposals archive:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy lưu trữ đề cương cho Lãnh đạo bộ môn', error: error.message });
   }
 });
 
@@ -2483,7 +2686,7 @@ app.get('/faculty-leader/topic-proposals-archive', authenticateJWT, async (req, 
     res.status(200).json(proposals);
   } catch (error) {
     console.error('Error fetching faculty leader proposals archive:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy lưu trữ đề cương cho Lãnh đạo khoa', error: error.message });
   }
 });
 
@@ -2509,7 +2712,7 @@ app.post('/change-password', authenticateJWT, async (req, res) => {
     await user.save();
     res.status(200).json({ message: 'Đổi mật khẩu thành công.' });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi đổi mật khẩu', error: error.message });
   }
 });
 
@@ -2616,7 +2819,7 @@ app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error in /head/students-statistics:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy thống kê học viên', error: error.message });
   }
 });
 
@@ -2629,7 +2832,7 @@ app.get('/departments/by-faculty/:facultyName', authenticateJWT, async (req, res
     const departments = Array.from(new Set(members.map(m => m.userInfo.department).filter(Boolean)));
     res.status(200).json({ departments });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách bộ môn/phòng thí nghiệm', error: error.message });
   }
 });
 
@@ -2653,7 +2856,7 @@ app.get('/check-head-for-department', authenticateJWT, async (req, res) => {
       return res.status(404).json({ found: false, message: 'Không tìm thấy lãnh đạo bộ môn phù hợp.' });
     }
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi kiểm tra lãnh đạo bộ môn', error: error.message });
   }
 });
 
@@ -2680,7 +2883,7 @@ app.get('/admin/department-major-mappings', authenticateJWT, async (req, res) =>
     res.json(mappings);
   } catch (error) {
     console.error('Error fetching mappings:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách ánh xạ', error: error.message });
   }
 });
 
@@ -2726,7 +2929,7 @@ app.get('/admin/available-departments-majors', authenticateJWT, async (req, res)
     res.json({ departments, majors });
   } catch (error) {
     console.error('Error fetching available data:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi lấy dữ liệu có sẵn', error: error.message });
   }
 });
 
@@ -2766,7 +2969,7 @@ app.post('/admin/department-major-mapping', authenticateJWT, async (req, res) =>
     }
   } catch (error) {
     console.error('Error creating/updating mapping:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi tạo/cập nhật ánh xạ', error: error.message });
   }
 });
 
@@ -2782,7 +2985,7 @@ app.delete('/admin/department-major-mapping/:id', authenticateJWT, async (req, r
     res.json({ message: 'Đã xóa ánh xạ' });
   } catch (error) {
     console.error('Error deleting mapping:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server khi xóa ánh xạ', error: error.message });
   }
 });
 

@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "scripts": {
+"start-all": "concurrently \"npm run dev --prefix uet-portal-backend\" \"set PORT=3002 && npm start --prefix uet-portal-frontend\""
+  }
+}

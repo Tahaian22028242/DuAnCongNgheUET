@@ -190,13 +190,9 @@ const AppLayout = ({ children }) => {
                     )}
                     {user.role === 'Sinh viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/propose-topic')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề xuất đề cương" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Lưu trữ đề cương" />}
+                                {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
                             </ListItem>
                             <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 {/* <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />

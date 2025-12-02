@@ -65,7 +65,7 @@ function UploadLecturers() {
               </Typography>
               <form onSubmit={handleUpload}>
                 <TextField
-                  label="Khoa/Ngành"
+                  label="Khoa"
                   value={faculty}
                   onChange={e => setFaculty(e.target.value)}
                   fullWidth

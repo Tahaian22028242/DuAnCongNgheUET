@@ -5,7 +5,7 @@ import Register from './Register';
 import Dashboard from './Dashboard';
 import ProtectedRoute from './ProtectedRoute';
 import StudentBatches from './StudentBatches';
-import BatchDetail from './BatchDetail';
+import StudentBatchDetail from './StudentBatchDetail';
 import Upload from './Upload';
 import Profile from './Profile';
 import ProposeTopic from './ProposeTopic';
@@ -23,6 +23,7 @@ import Notifications from './Notifications'; // Import the Notifications compone
 import FacultyLeaderTopics from './FacultyLeaderTopics';
 import DepartmentMajorMapping from './DepartmentMajorMapping';
 import TopicArchive from './TopicArchive';
+import TopicManagement from './TopicManagement';
 import FacultyLeaderManagement from './FacultyLeaderManagement';
 
 function App() {
@@ -90,7 +91,7 @@ function App() {
                 path="/batches/:batchId"
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
-                        <BatchDetail />
+                        <StudentBatchDetail />
                     </ProtectedRoute>
                 }
             />
@@ -171,6 +172,14 @@ function App() {
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
                         <FacultyLeaderManagement />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/topic-management"
+                element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                        <TopicManagement />
                     </ProtectedRoute>
                 }
             />

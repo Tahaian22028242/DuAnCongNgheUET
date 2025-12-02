@@ -1,0 +1,87 @@
+ 1. Thế nào là dự án? Các thuộc tính của một dự án? Dự án CNTT? Dự án phần mềm?
+
+* Định nghĩa dự án (theo PMI): Dự án là một nỗ lực tạm thời được thực hiện để tạo ra một sản phẩm hoặc dịch vụ duy nhất.
+* Thuộc tính cơ bản của dự án:
+
+  * Có mục tiêu duy nhất, kết quả mang tính đặc thù.
+  * Có thời gian bắt đầu và kết thúc.
+  * Sử dụng nguồn lực dự kiến (thời gian, chi phí, nhân lực).
+  * Thực hiện bởi nhóm người có chuyên môn.
+  * Có nhiều bên liên quan.
+  * Triển khai trong môi trường biến động, có nhiều rủi ro.
+* Dự án CNTT: tạo ra sản phẩm là một hệ thống thông tin (bao gồm phần cứng, mạng, phần mềm, dữ liệu, con người).
+* Dự án phần mềm: tạo ra sản phẩm hoặc dịch vụ phần mềm, thường khi tổ chức đã có hạ tầng CNTT cơ bản.
+
+
+ 2. Bộ ba ràng buộc của một dự án
+
+* Gồm phạm vi – chi phí – thời gian; chất lượng bị ảnh hưởng trực tiếp khi một trong ba thay đổi.
+* Công dụng: Giúp quản lý dự án thương lượng, cân đối và lập kế hoạch hiệu quả giữa các yêu cầu của khách hàng, nhà tài trợ và khả năng thực hiện.
+
+
+ 3. Khái niệm quản lý dự án? Tại sao cần quản lý dự án?
+
+* Khái niệm:
+
+  * Là quá trình áp dụng kiến thức, kỹ năng, công cụ, phương pháp để đạt mục tiêu dự án.
+  * Bao gồm lập kế hoạch và đảm bảo thực hiện đúng kế hoạch.
+* Cần quản lý dự án vì:
+
+  * Giúp dự án hoàn thành đúng phạm vi, chi phí, thời gian, chất lượng.
+  * Giúp đáp ứng nhu cầu, mong đợi của các bên liên quan.
+
+
+ 4. Các bên liên quan của một dự án
+
+* Khái niệm: Cá nhân/tổ chức tham gia hoặc bị ảnh hưởng bởi dự án.
+* Các bên liên quan chính:
+
+  * Chủ đầu tư/nhà tài trợ (cung cấp vốn, ra quyết định).
+  * Khách hàng (thụ hưởng kết quả).
+  * Người dùng (trực tiếp sử dụng sản phẩm).
+  * Ban lãnh đạo tổ chức.
+  * Nhóm dự án, nhà quản lý dự án, các nhóm chuyên môn.
+* Quan trọng nhất: thường là chủ đầu tư/nhà tài trợ, vì họ quyết định mục tiêu, định hướng và có quyền dừng dự án.
+
+
+ 5. 10 miền tri thức trong quản lý dự án
+
+1. Quản lý tích hợp dự án.
+2. Quản lý phạm vi.
+3. Quản lý thời gian.
+4. Quản lý chi phí.
+5. Quản lý chất lượng.
+6. Quản lý nhân lực.
+7. Quản lý giao tiếp.
+8. Quản lý rủi ro.
+9. Quản lý mua sắm.
+10. Quản lý các bên liên quan.
+
+
+ 6. Các định nghĩa về dự án thành công
+
+1. Theo bộ ba ràng buộc: Hoàn thành đúng phạm vi, chi phí, thời gian.
+2. Theo chất lượng sản phẩm: Đáp ứng yêu cầu, được khách hàng và người dùng chấp nhận.
+3. Theo sự hài lòng các bên liên quan: Không chỉ đáp ứng mục tiêu kỹ thuật mà còn thỏa mãn kỳ vọng của chủ đầu tư, khách hàng, người dùng.
+    Liên hệ: Cả 3 định nghĩa bổ sung cho nhau. Dự án chỉ thực sự thành công khi cân bằng giữa phạm vi – chi phí – thời gian, tạo ra sản phẩm chất lượng và thỏa mãn các bên liên quan.
+
+
+ 7. Chương trình dự án và Danh mục dự án
+
+* Chương trình dự án: Tập hợp các dự án có liên quan, được quản lý phối hợp để đạt lợi ích mà nếu quản lý riêng lẻ thì không đạt.
+* Danh mục dự án (portfolio): Tập hợp tất cả dự án và chương trình của tổ chức, được quản lý nhằm đạt mục tiêu chiến lược.
+   Khác nhau:
+* Chương trình: các dự án có liên quan, mục tiêu chung.
+* Danh mục: tất cả dự án (có thể không liên quan), quản lý theo góc độ chiến lược.
+
+
+ 8. Các kỹ năng cần có của một PM
+
+* Lãnh đạo: dẫn dắt, truyền cảm hứng → đạt được qua rèn luyện phong cách lãnh đạo, thực tiễn quản lý nhóm.
+* Giao tiếp: truyền đạt rõ ràng, hiệu quả → đạt được qua luyện tập kỹ năng thuyết trình, lắng nghe chủ động.
+* Quản lý con người: phân công, tạo động lực, giải quyết mâu thuẫn.
+* Đàm phán: cân bằng lợi ích các bên → học qua tình huống thực tế, thương lượng.
+* Quản lý rủi ro: dự đoán, giảm thiểu tác động.
+* Kỹ năng kỹ thuật/chuyên môn: nắm công nghệ, nghiệp vụ liên quan.
+* Ra quyết định: lựa chọn tối ưu trong điều kiện ràng buộc.
+

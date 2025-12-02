@@ -18,7 +18,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AppLayout from './AppLayout';
 
-function BatchDetail() {
+function StudentBatchDetail() {
     const { batchId } = useParams();
     const [batchInfo, setBatchInfo] = useState(null);
     const [students, setStudents] = useState([]);
@@ -60,7 +60,7 @@ function BatchDetail() {
         ));
 
     useEffect(() => {
-        fetchBatchDetail();
+        fetchStudentBatchDetail();
         // Scroll lên đầu khi vào trang
         window.scrollTo(0, 0);
     }, [batchId]);
@@ -70,7 +70,7 @@ function BatchDetail() {
         setPage(0); // Reset về trang đầu khi lọc
     }, [students, searchFilters]);
 
-    const fetchBatchDetail = async () => {
+    const fetchStudentBatchDetail = async () => {
         setLoading(true);
         try {
             const res = await fetch(`http://localhost:5000/batch/${batchId}`, { credentials: 'include' });
@@ -166,7 +166,7 @@ function BatchDetail() {
             if (res.ok) {
                 setMessage({ type: 'success', text: data.message });
                 setAddDialogOpen(false);
-                fetchBatchDetail();
+                fetchStudentBatchDetail();
             } else {
                 setMessage({ type: 'error', text: data.message });
             }
@@ -201,7 +201,7 @@ function BatchDetail() {
             if (res.ok) {
                 setMessage({ type: 'success', text: data.message });
                 setEditDialogOpen(false);
-                fetchBatchDetail();
+                fetchStudentBatchDetail();
             } else {
                 setMessage({ type: 'error', text: data.message });
             }
@@ -221,7 +221,7 @@ function BatchDetail() {
             if (res.ok) {
                 setMessage({ type: 'success', text: data.message });
                 setDeleteDialogOpen(false);
-                fetchBatchDetail();
+                fetchStudentBatchDetail();
             } else {
                 setMessage({ type: 'error', text: data.message });
             }
@@ -732,4 +732,4 @@ function BatchDetail() {
     );
 }
 
-export default BatchDetail;
+export default StudentBatchDetail;
