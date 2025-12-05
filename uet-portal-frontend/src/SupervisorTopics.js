@@ -387,7 +387,8 @@ function SupervisorTopics() {
                                     </IconButton>
                                   </Tooltip>
 
-                                  {user.role === 'Giảng viên' && user.username === proposal.primarySupervisor && proposal.outlineStatus !== 'approved' && (
+                                  {/* Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa xóa file */}
+                                  {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === proposal.primarySupervisor && proposal.outlineStatus !== 'approved' && (
                                     <Tooltip title="Xóa">
                                       <IconButton size="small" color="error" onClick={() => handleDeleteFile(proposal._id, file.filename)} sx={{ p: 0.4, width: 32, height: 32 }}>
                                         <DeleteIcon fontSize="small" />
@@ -473,8 +474,8 @@ function SupervisorTopics() {
                         </Alert>
                       )}
 
-                      {/* Upload area for primary supervisor */}
-                      {user.role === 'Giảng viên' && user.username === proposal.primarySupervisor && proposal.outlineStatus !== 'approved' && (
+                      {/* Upload area for primary supervisor - Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa */}
+                      {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === proposal.primarySupervisor && proposal.outlineStatus !== 'approved' && (
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                           <Typography variant="subtitle2" sx={{ mb: 1 }}>Upload thêm file (GVHD):</Typography>
                           <input

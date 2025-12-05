@@ -233,9 +233,15 @@ const AppLayout = ({ children }) => {
                     )}
                     {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
                         <>
+                            {/* Menu Giảng viên - vì LĐBM cũng là giảng viên */}
+                            <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Đề xuất từ học viên" />}
+                            </ListItem>
+                            {/* Menu Lãnh đạo bộ môn */}
                             <ListItem button onClick={() => navigate('/head/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt" />}
+                                {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt (LĐBM)" />}
                             </ListItem>
                             <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
@@ -245,13 +251,23 @@ const AppLayout = ({ children }) => {
                                 <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thống kê học viên" />}
                             </ListItem>
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
+                            </ListItem>
                         </>
                     )}
                     {user.role === 'Lãnh đạo khoa' && (
                         <>
+                            {/* Menu Giảng viên - vì Lãnh đạo khoa cũng là giảng viên */}
+                            <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Đề xuất từ học viên" />}
+                            </ListItem>
+                            {/* Menu Lãnh đạo khoa */}
                             <ListItem button onClick={() => navigate('/faculty-leader/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt" />}
+                                {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt (LĐK)" />}
                             </ListItem>
                             <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
@@ -260,6 +276,10 @@ const AppLayout = ({ children }) => {
                             <ListItem button onClick={() => navigate('/faculty-leader/management')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý đề cương" />}
+                            </ListItem>
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                                <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
                             </ListItem>
                         </>
                     )}

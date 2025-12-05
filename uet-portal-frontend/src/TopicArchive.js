@@ -428,10 +428,10 @@ function TopicArchive() {
                           </Tooltip>
                         )}
                       {(proposal.outlineFiles && proposal.outlineFiles.length > 0) && (
-                        // Học viên, GVHD 1, GVHD 2 luôn xem được
-                        // LĐBM và Lãnh đạo khoa chỉ xem được khi outline đã được phê duyệt
+                        // Học viên, GVHD 1, GVHD 2 luôn xem được (bao gồm cả LĐBM/LĐK là GVHD)
+                        // LĐBM và Lãnh đạo khoa không phải GVHD chỉ xem được khi outline đã được phê duyệt
                         ((user.role === 'Sinh viên') ||
-                          (user.role === 'Giảng viên' && (user.username === proposal.primarySupervisor || user.username === proposal.secondarySupervisor)) ||
+                          (['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && (user.username === proposal.primarySupervisor || user.username === proposal.secondarySupervisor)) ||
                           ((user.role === 'Lãnh đạo bộ môn' || user.role === 'Lãnh đạo khoa') && proposal.outlineStatus === 'approved')
                         )
                       )}
@@ -649,7 +649,8 @@ function TopicArchive() {
                               <DownloadIcon />
                             </IconButton>
                           </Tooltip>
-                          {user.role === 'Giảng viên' &&
+                          {/* Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa (là GVHD chính) xóa file */}
+                          {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) &&
                             user.username === selectedProposal.primarySupervisor &&
                             selectedProposal.outlineStatus !== 'approved' && (
                               <Tooltip title="Xóa">
