@@ -791,14 +791,14 @@ app.get('/admin/batch-names', authenticateJWT, async (req, res) => {
 app.post('/admin/batch/:batchId/add-student', authenticateJWT, async (req, res) => {
   if (req.user.role !== 'Quản trị viên') return res.status(403).json({ message: 'Không có quyền truy cập' });
   const { batchId } = req.params;
-  const { studentId, fullName, birthDate, major } = req.body;
+  const { studentId, fullName, birthDate, faculty, major } = req.body;
   if (!studentId || !fullName || !major) return res.status(400).json({ message: 'Thiếu thông tin học viên' });
 
   const batch = await StudentBatch.findById(batchId);
   if (!batch) return res.status(404).json({ message: 'Không tìm thấy đợt học viên' });
 
   // Thêm vào danh sách đợt
-  batch.students.push({ studentId, fullName, birthDate, major });
+  batch.students.push({ studentId, fullName, birthDate, faculty, major });
   await batch.save();
 
   // Tạo tài khoản nếu chưa có
@@ -809,11 +809,11 @@ app.post('/admin/batch/:batchId/add-student', authenticateJWT, async (req, res) 
       username: studentId,
       password: hashedPassword,
       role: 'Sinh viên',
-      studentInfo: { studentId, fullName, birthDate, major }
+      studentInfo: { studentId, fullName, birthDate, faculty, major }
     });
     await user.save();
   }
-  res.json({ message: 'Đã thêm học viên vào đợt', student: { studentId, fullName, birthDate, major } });
+  res.json({ message: 'Đã thêm học viên vào đợt', student: { studentId, fullName, birthDate, faculty, major } });
 });
 
 // Sửa thông tin học viên (không sửa mật khẩu)
@@ -824,7 +824,7 @@ app.put('/admin/student/:studentId', authenticateJWT, async (req, res) => {
   }
 
   const { studentId } = req.params; // Mã học viên cũ
-  const { newStudentId, fullName, birthDate, major } = req.body;
+  const { newStudentId, fullName, birthDate, faculty, major } = req.body;
 
   try {
     // Tìm user hiện tại
@@ -890,6 +890,17 @@ app.put('/admin/student/:studentId', authenticateJWT, async (req, res) => {
       );
     }
 
+    if (faculty) {
+      user.studentInfo.faculty = faculty;
+      
+      // Cập nhật trong batch
+      await StudentBatch.updateMany(
+        { 'students.studentId': newStudentId || studentId },
+        { $set: { 'students.$[elem].faculty': faculty } },
+        { arrayFilters: [{ 'elem.studentId': newStudentId || studentId }] }
+      );
+    }
+
     if (major) {
       user.studentInfo.major = major;
       
@@ -909,6 +920,7 @@ app.put('/admin/student/:studentId', authenticateJWT, async (req, res) => {
         studentId: user.studentInfo.studentId,
         fullName: user.studentInfo.fullName,
         birthDate: user.studentInfo.birthDate,
+        faculty: user.studentInfo.faculty,
         major: user.studentInfo.major
       }
     });
