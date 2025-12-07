@@ -19,7 +19,7 @@
 
 .dashboard button {
   padding: 10px 20px;
-  background-color: #2e7d32;
+  background-color: #3c9440d7;
   color: white;
   border: none;
   border-radius: 5px;
@@ -28,7 +28,22 @@
 }
 
 .dashboard button:hover {
-  background-color: #45b74a;
+  background-color: #265728;
+  color: #ffffff;
+}
+
+.dashboard-content .MuiPaper-root:hover .MuiTypography-root
+/* .dashboard-content .MuiPaper-root:hover .MuiChip-root */
+.dashboard-content .MuiCard-root:hover .MuiTypography-root,
+/* .dashboard-content .MuiCard-root:hover .MuiChip-root, */
+.dashboard-content .MuiCard-root:hover .MuiListItemText-root,
+.dashboard-content .MuiCard-root:hover .MuiBadge-root,
+.dashboard-content .MuiCard-root:hover .MuiIconButton-root {
+  color: #ffffff !important;
+}
+
+.dashboard text:hover {
+  color: #ffffff;
 }
 
 .dashboard-content {

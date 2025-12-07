@@ -182,7 +182,8 @@ function StudentBatchDetail() {
             const requestBody = {
                 fullName: studentForm.fullName,
                 birthDate: studentForm.birthDate,
-                major: studentForm.major
+                major: studentForm.major,
+                faculty: studentForm.faculty
             };
 
             // Nếu mã học viên thay đổi, thêm newStudentId
@@ -655,6 +656,7 @@ function StudentBatchDetail() {
                                 <TextField label="Họ và tên" value={studentForm.fullName} onChange={e => setStudentForm({ ...studentForm, fullName: e.target.value })} fullWidth sx={{ mb: 2 }} />
                                 <TextField label="Ngày sinh" type="date" value={studentForm.birthDate} onChange={e => setStudentForm({ ...studentForm, birthDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} sx={{ mb: 2 }} />
                                 <TextField label="Ngành học" value={studentForm.major} onChange={e => setStudentForm({ ...studentForm, major: e.target.value })} fullWidth sx={{ mb: 2 }} />
+                                <TextField label="Khoa" value={studentForm.faculty} onChange={e => setStudentForm({ ...studentForm, faculty: e.target.value })} fullWidth sx={{ mb: 2 }} />
                             </DialogContent>
                             <DialogActions>
                                 <Button onClick={() => setAddDialogOpen(false)}>Hủy</Button>

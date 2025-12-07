@@ -264,6 +264,7 @@ function StudentBatches() {
                                                     <Badge
                                                         badgeContent={batch.students.length}
                                                         color="primary"
+                                                
                                                         sx={{ ml: 2 }}
                                                     >
                                                         <PeopleIcon color="action" />
