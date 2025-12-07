@@ -51,7 +51,7 @@ function FacultyLecturers() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user')) || {};
 
-  // Tạo danh sách unique cho dropdowns
+  // Tạo danh sách unique cho dropdowns - lấy từ members thực tế
   const uniqueDepartments = Array.from(
     new Set(
       members
@@ -172,6 +172,24 @@ function FacultyLecturers() {
       const memberId = selectedMember?._id;
       if (!memberId) {
         setMessage({ type: 'error', text: 'Không tìm thấy ID của thành viên' });
+        return;
+      }
+
+      // Validate required fields when changing roles
+      if (selectedMember?.role === 'Giảng viên' && memberForm.role === 'Lãnh đạo bộ môn' && !memberForm.managedDepartment) {
+        setMessage({ type: 'error', text: 'Phải chọn bộ môn/phòng thí nghiệm quản lý' });
+        return;
+      }
+      if ((selectedMember?.role === 'Giảng viên' || selectedMember?.role === 'Lãnh đạo bộ môn') && memberForm.role === 'Lãnh đạo khoa' && !memberForm.faculty) {
+        setMessage({ type: 'error', text: 'Phải chọn Khoa quản lý' });
+        return;
+      }
+      if (selectedMember?.role === 'Lãnh đạo khoa' && memberForm.role === 'Giảng viên' && !memberForm.department) {
+        setMessage({ type: 'error', text: 'Phải chọn bộ môn/phòng thí nghiệm trực thuộc' });
+        return;
+      }
+      if (selectedMember?.role === 'Lãnh đạo khoa' && memberForm.role === 'Lãnh đạo bộ môn' && !memberForm.managedDepartment) {
+        setMessage({ type: 'error', text: 'Phải chọn bộ môn/phòng thí nghiệm quản lý' });
         return;
       }
 
@@ -597,6 +615,8 @@ function FacultyLecturers() {
                                           department: row.department || '',
                                           position: row.position || '',
                                           role: row.role || 'Giảng viên',
+                                          faculty: row.faculty || '',
+                                          managedDepartment: row.managedDepartment || '',
                                           managedMajor: row.role === 'Chủ nhiệm bộ môn' ? (row.department || facultyName) : ''
                                         });
                                         setEditDialogOpen(true);
@@ -765,44 +785,149 @@ function FacultyLecturers() {
                     onChange={e => setMemberForm({ ...memberForm, role: e.target.value })}
                   >
                     <MenuItem value="Giảng viên">Giảng viên</MenuItem>
-                    <MenuItem value="Chủ nhiệm bộ môn">Chủ nhiệm bộ môn</MenuItem>
+                    <MenuItem value="Lãnh đạo bộ môn">Lãnh đạo bộ môn</MenuItem>
+                    <MenuItem value="Lãnh đạo khoa">Lãnh đạo khoa</MenuItem>
                   </Select>
                 </FormControl>
 
-                {memberForm.role === 'Chủ nhiệm bộ môn' && (
-                  <FormControl fullWidth sx={{ mb: 2 }}>
-                    <InputLabel>Ngành quản lý</InputLabel>
-                    <Select
-                      value={memberForm.managedMajor}
-                      label="Ngành quản lý"
-                      onChange={e => setMemberForm({ ...memberForm, managedMajor: e.target.value })}
-                    >
-                      {allFaculties.map(f => (
-                        <MenuItem key={f} value={f}>{f}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                {/* Giảng viên -> Lãnh đạo bộ môn: Chọn bộ môn quản lý */}
+                {selectedMember?.role === 'Giảng viên' && memberForm.role === 'Lãnh đạo bộ môn' && (
+                  <>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      Chuyển từ Giảng viên sang Lãnh đạo bộ môn: Phải chọn bộ môn/phòng thí nghiệm quản lý.
+                    </Alert>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Bộ môn/Phòng thí nghiệm quản lý</InputLabel>
+                      <Select
+                        value={memberForm.managedDepartment || ''}
+                        label="Bộ môn/Phòng thí nghiệm quản lý"
+                        onChange={e => setMemberForm({ ...memberForm, managedDepartment: e.target.value })}
+                        required
+                      >
+                        {uniqueDepartments.map(dept => (
+                          <MenuItem key={dept} value={dept}>
+                            {dept}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </>
                 )}
 
-                {selectedMember?.role === 'Chủ nhiệm bộ môn' && memberForm.role === 'Giảng viên' && (
-                  <Alert severity="warning" sx={{ mb: 2 }}>
-                    Chuyển từ CNBM sang Giảng viên: Hệ thống sẽ kiểm tra xem có đề tài đang chờ duyệt không.
-                  </Alert>
+                {/* Giảng viên -> Lãnh đạo khoa: Chọn khoa quản lý */}
+                {selectedMember?.role === 'Giảng viên' && memberForm.role === 'Lãnh đạo khoa' && (
+                  <>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      Chuyển từ Giảng viên sang Lãnh đạo khoa: Phải chọn Khoa quản lý.
+                    </Alert>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Khoa quản lý</InputLabel>
+                      <Select
+                        value={memberForm.faculty || ''}
+                        label="Khoa quản lý"
+                        onChange={e => setMemberForm({ ...memberForm, faculty: e.target.value })}
+                        required
+                      >
+                        {allFaculties.map(f => (
+                          <MenuItem key={f} value={f}>{f}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </>
                 )}
 
-                {selectedMember?.role === 'Giảng viên' && memberForm.role === 'Chủ nhiệm bộ môn' && (
+                {/* Lãnh đạo khoa -> Giảng viên: Chọn bộ môn trực thuộc */}
+                {selectedMember?.role === 'Lãnh đạo khoa' && memberForm.role === 'Giảng viên' && (
+                  <>
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      Chuyển từ Lãnh đạo khoa sang Giảng viên: Hệ thống sẽ kiểm tra xem có đề tài đang chờ duyệt không. Phải chọn bộ môn/phòng thí nghiệm trực thuộc.
+                    </Alert>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Bộ môn/Phòng thí nghiệm trực thuộc</InputLabel>
+                      <Select
+                        value={memberForm.department || ''}
+                        label="Bộ môn/Phòng thí nghiệm trực thuộc"
+                        onChange={e => setMemberForm({ ...memberForm, department: e.target.value })}
+                        required
+                      >
+                        {uniqueDepartments.map(dept => (
+                          <MenuItem key={dept} value={dept}>
+                            {dept}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </>
+                )}
+
+                {/* Lãnh đạo bộ môn -> Giảng viên: Tự động giữ bộ môn */}
+                {selectedMember?.role === 'Lãnh đạo bộ môn' && memberForm.role === 'Giảng viên' && (
                   <Alert severity="info" sx={{ mb: 2 }}>
-                    Chuyển từ Giảng viên sang CNBM: Phải chọn ngành quản lý.
+                    Chuyển từ Lãnh đạo bộ môn sang Giảng viên: Giảng viên sẽ trực thuộc bộ môn/phòng thí nghiệm <strong>{selectedMember?.managedDepartment}</strong> (bộ môn trước đây quản lý).
                   </Alert>
                 )}
 
-                <TextField
-                  label="Bộ môn/Phòng thí nghiệm"
-                  value={memberForm.department}
-                  onChange={e => setMemberForm({ ...memberForm, department: e.target.value })}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                />
+                {/* Lãnh đạo bộ môn -> Lãnh đạo khoa: Chọn khoa */}
+                {selectedMember?.role === 'Lãnh đạo bộ môn' && memberForm.role === 'Lãnh đạo khoa' && (
+                  <>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      Chuyển từ Lãnh đạo bộ môn sang Lãnh đạo khoa: Phải chọn Khoa quản lý.
+                    </Alert>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Khoa quản lý</InputLabel>
+                      <Select
+                        value={memberForm.faculty || ''}
+                        label="Khoa quản lý"
+                        onChange={e => setMemberForm({ ...memberForm, faculty: e.target.value })}
+                        required
+                      >
+                        {allFaculties.map(f => (
+                          <MenuItem key={f} value={f}>{f}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </>
+                )}
+
+                {/* Lãnh đạo khoa -> Lãnh đạo bộ môn: Chọn bộ môn */}
+                {selectedMember?.role === 'Lãnh đạo khoa' && memberForm.role === 'Lãnh đạo bộ môn' && (
+                  <>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      Chuyển từ Lãnh đạo khoa sang Lãnh đạo bộ môn: Phải chọn bộ môn/phòng thí nghiệm quản lý.
+                    </Alert>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Bộ môn/Phòng thí nghiệm quản lý</InputLabel>
+                      <Select
+                        value={memberForm.managedDepartment || ''}
+                        label="Bộ môn/Phòng thí nghiệm quản lý"
+                        onChange={e => setMemberForm({ ...memberForm, managedDepartment: e.target.value })}
+                        required
+                      >
+                        {uniqueDepartments.map(dept => (
+                          <MenuItem key={dept} value={dept}>
+                            {dept}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </>
+                )}
+
+                {/* Hiển thị trường department nếu không đổi role hoặc các trường hợp khác */}
+                {!(
+                  (selectedMember?.role === 'Giảng viên' && memberForm.role === 'Lãnh đạo bộ môn') ||
+                  (selectedMember?.role === 'Lãnh đạo khoa' && memberForm.role === 'Giảng viên') ||
+                  (selectedMember?.role === 'Lãnh đạo bộ môn' && memberForm.role === 'Giảng viên') ||
+                  (selectedMember?.role === 'Lãnh đạo khoa' && memberForm.role === 'Lãnh đạo bộ môn')
+                ) && (
+                  <TextField
+                    label="Bộ môn/Phòng thí nghiệm"
+                    value={memberForm.department}
+                    onChange={e => setMemberForm({ ...memberForm, department: e.target.value })}
+                    fullWidth
+                    sx={{ mb: 2 }}
+                  />
+                )}
                 <TextField
                   label="Chức vụ"
                   value={memberForm.position}

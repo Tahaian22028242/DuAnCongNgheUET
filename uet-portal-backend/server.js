@@ -22,7 +22,7 @@ mongoose
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3002',
+  origin: 'http://localhost:3000',
   credentials: true,
 }));
 app.use(express.json());
@@ -511,14 +511,14 @@ app.get('/students/batches', authenticateJWT, async (req, res) => {
     let allowedToView = false;
     let majorFilter = null;
 
-    // Kiểm tra quyền truy cập
-    if (req.user.role === 'Quản trị viên' || req.user.role === 'Giảng viên') {
+    // Kiểm tra quyền truy cập - Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa
+    if (['Quản trị viên', 'Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role)) {
       allowedToView = true;
-    } else if (req.user.role === 'Lãnh đạo bộ môn') {
-      allowedToView = true;
-      // CNBM chỉ được xem sinh viên thuộc ngành mình quản lý
-      const head = await User.findById(req.user._id);
-      majorFilter = head.managedMajor;
+      // LĐBM chỉ được xem sinh viên thuộc ngành mình quản lý
+      if (req.user.role === 'Lãnh đạo bộ môn') {
+        const head = await User.findById(req.user._id);
+        majorFilter = head.managedMajor;
+      }
     }
 
     if (!allowedToView) {
@@ -791,14 +791,14 @@ app.get('/admin/batch-names', authenticateJWT, async (req, res) => {
 app.post('/admin/batch/:batchId/add-student', authenticateJWT, async (req, res) => {
   if (req.user.role !== 'Quản trị viên') return res.status(403).json({ message: 'Không có quyền truy cập' });
   const { batchId } = req.params;
-  const { studentId, fullName, birthDate, major, faculty } = req.body;
+  const { studentId, fullName, birthDate, faculty, major } = req.body;
   if (!studentId || !fullName || !major) return res.status(400).json({ message: 'Thiếu thông tin học viên' });
 
   const batch = await StudentBatch.findById(batchId);
   if (!batch) return res.status(404).json({ message: 'Không tìm thấy đợt học viên' });
 
-  // Thêm vào danh sách đợt (bao gồm trường faculty nếu có)
-  batch.students.push({ studentId, fullName, birthDate, major, faculty });
+  // Thêm vào danh sách đợt
+  batch.students.push({ studentId, fullName, birthDate, major });
   await batch.save();
 
   // Tạo tài khoản nếu chưa có
@@ -809,19 +809,11 @@ app.post('/admin/batch/:batchId/add-student', authenticateJWT, async (req, res) 
       username: studentId,
       password: hashedPassword,
       role: 'Sinh viên',
-      studentInfo: { studentId, fullName, birthDate, major, faculty }
+      studentInfo: { studentId, fullName, birthDate, major }
     });
     await user.save();
-  } else {
-    // Nếu user đã tồn tại nhưng chưa có studentInfo.faculty, cập nhật nếu được gửi
-    if (faculty && (!user.studentInfo || !user.studentInfo.faculty)) {
-      user.studentInfo = user.studentInfo || {};
-      user.studentInfo.faculty = faculty;
-      await user.save();
-    }
   }
-
-  res.json({ message: 'Đã thêm học viên vào đợt', student: { studentId, fullName, birthDate, major, faculty } });
+  res.json({ message: 'Đã thêm học viên vào đợt', student: { studentId, fullName, birthDate, major } });
 });
 
 // Sửa thông tin học viên (không sửa mật khẩu)
@@ -832,7 +824,7 @@ app.put('/admin/student/:studentId', authenticateJWT, async (req, res) => {
   }
 
   const { studentId } = req.params; // Mã học viên cũ
-  const { newStudentId, fullName, birthDate, major, faculty } = req.body;
+  const { newStudentId, fullName, birthDate, major } = req.body;
 
   try {
     // Tìm user hiện tại
@@ -898,6 +890,17 @@ app.put('/admin/student/:studentId', authenticateJWT, async (req, res) => {
       );
     }
 
+    if (faculty) {
+      user.studentInfo.faculty = faculty;
+      
+      // Cập nhật trong batch
+      await StudentBatch.updateMany(
+        { 'students.studentId': newStudentId || studentId },
+        { $set: { 'students.$[elem].faculty': faculty } },
+        { arrayFilters: [{ 'elem.studentId': newStudentId || studentId }] }
+      );
+    }
+
     if (major) {
       user.studentInfo.major = major;
       
@@ -928,8 +931,7 @@ app.put('/admin/student/:studentId', authenticateJWT, async (req, res) => {
         studentId: user.studentInfo.studentId,
         fullName: user.studentInfo.fullName,
         birthDate: user.studentInfo.birthDate,
-        major: user.studentInfo.major,
-        faculty: user.studentInfo.faculty || ''
+        major: user.studentInfo.major
       }
     });
 
@@ -1212,10 +1214,12 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
     if (position) user.userInfo.position = position;
     
     // Cập nhật department và faculty tùy theo role
-    if (user.role === 'Giảng viên') {
+    if (['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role)) {
       if (department) user.userInfo.department = department;
       if (faculty) user.userInfo.faculty = faculty;
-    } else if (user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') {
+    }
+    
+    if (user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') {
       // Với LĐBM: đồng bộ department với managedDepartment
       if (managedDepartment && managedDepartment !== user.managedDepartment) {
         // Kiểm tra trùng
@@ -1258,12 +1262,14 @@ app.put('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
   }
 });
 
-// Xóa giảng viên
+// Xóa giảng viên (bao gồm cả Lãnh đạo bộ môn, Lãnh đạo khoa)
 app.delete('/admin/lecturer/:lecturerId', authenticateJWT, async (req, res) => {
   if (req.user.role !== 'Quản trị viên') return res.status(403).json({ message: 'Không có quyền truy cập' });
   const { lecturerId } = req.params;
   const user = await User.findById(lecturerId);
-  if (!user || user.role !== 'Giảng viên') return res.status(404).json({ message: 'Không tìm thấy giảng viên' });
+  if (!user || !['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role)) {
+    return res.status(404).json({ message: 'Không tìm thấy giảng viên' });
+  }
   await User.findByIdAndDelete(lecturerId);
   res.json({ message: 'Đã xóa giảng viên khỏi hệ thống' });
 });
@@ -1345,7 +1351,8 @@ app.delete('/admin/head/:headId', authenticateJWT, async (req, res) => {
 // API giảng viên phê duyệt/từ chối đề tài (CẬP NHẬT)
 app.put('/supervisor/review-topic/:id', authenticateJWT, async (req, res) => {
   try {
-    if (req.user.role !== 'Giảng viên') {
+    // Cho phép Giảng viên, Lãnh đạo bộ môn và Lãnh đạo khoa
+    if (!['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền phê duyệt đề tài' });
     }
 
@@ -1760,12 +1767,12 @@ app.put('/student/resubmit-topic/:proposalId', authenticateJWT, outlineUpload.ar
     const primary = await User.findOne({ username: primarySupervisor });
     const secondary = secondarySupervisor ? await User.findOne({ username: secondarySupervisor }) : null;
 
-    // Ràng buộc bộ môn và khoa
-    if (!primary || primary.role !== 'Giảng viên') {
+    // Ràng buộc bộ môn và khoa - cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa
+    if (!primary || !['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(primary.role)) {
       return res.status(400).json({ message: 'Giảng viên hướng dẫn 1 không hợp lệ' });
     }
     if (secondary) {
-      if (secondary.role !== 'Giảng viên') {
+      if (!['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(secondary.role)) {
         return res.status(400).json({ message: 'Giảng viên hướng dẫn 2 không hợp lệ' });
       }
       const sameDept = (primary.userInfo?.department || '') === (secondary.userInfo?.department || '');
@@ -1854,12 +1861,12 @@ app.post('/student/propose-topic', authenticateJWT, outlineUpload.array('outline
     const primary = await User.findOne({ username: primarySupervisor });
     const secondary = secondarySupervisor ? await User.findOne({ username: secondarySupervisor }) : null;
 
-    // Ràng buộc bộ môn và khoa
-    if (!primary || primary.role !== 'Giảng viên') {
+    // Ràng buộc bộ môn và khoa - cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa
+    if (!primary || !['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(primary.role)) {
       return res.status(400).json({ message: 'Giảng viên hướng dẫn 1 không hợp lệ' });
     }
     if (secondary) {
-      if (secondary.role !== 'Giảng viên') {
+      if (!['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(secondary.role)) {
         return res.status(400).json({ message: 'Giảng viên hướng dẫn 2 không hợp lệ' });
       }
       const sameDept = (primary.userInfo?.department || '') === (secondary.userInfo?.department || '');
@@ -2458,10 +2465,13 @@ app.get('/faculty/:facultyName/members', authenticateJWT, async (req, res) => {
   }
 });
 
-// API lấy danh sách giảng viên (cho autocomplete)
+// API lấy danh sách giảng viên (cho autocomplete) - bao gồm cả Lãnh đạo bộ môn và Lãnh đạo khoa
 app.get('/supervisors', authenticateJWT, async (req, res) => {
   try {
-    const supervisors = await User.find({ role: 'Giảng viên' }).select('username userInfo.fullName');
+    // Lấy tất cả Giảng viên, Lãnh đạo bộ môn và Lãnh đạo khoa
+    const supervisors = await User.find({ 
+      role: { $in: ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'] } 
+    }).select('username userInfo.fullName');
     const supervisorList = supervisors.map(supervisor => ({
       username: supervisor.username,
       fullName: supervisor.userInfo?.fullName || supervisor.username
@@ -2566,7 +2576,8 @@ app.post('/admin/upload-lecturers', authenticateJWT, upload.single('excelFile'),
 // API giảng viên xem đề xuất đề tài của sinh viên
 app.get('/supervisor/topic-proposals', authenticateJWT, async (req, res) => {
   try {
-    if (req.user.role !== 'Giảng viên') {
+    // Cho phép Giảng viên, Lãnh đạo bộ môn và Lãnh đạo khoa
+    if (!['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền truy cập' });
     }
 
@@ -2611,7 +2622,8 @@ app.get('/student/topic-proposals-archive', authenticateJWT, async (req, res) =>
 // API lấy lưu trữ đề cương cho giảng viên
 app.get('/supervisor/topic-proposals-archive', authenticateJWT, async (req, res) => {
   try {
-    if (req.user.role !== 'Giảng viên') {
+    // Cho phép Giảng viên, Lãnh đạo bộ môn và Lãnh đạo khoa
+    if (!['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền truy cập' });
     }
 
@@ -3107,7 +3119,8 @@ app.post('/student/upload-outline/:proposalId', authenticateJWT, outlineUpload.a
 // API: GVHD chính chỉnh sửa file đề cương (upload thêm hoặc xóa file)
 app.post('/supervisor/manage-outline/:proposalId', authenticateJWT, outlineUpload.array('outlineFiles', 10), async (req, res) => {
   try {
-    if (req.user.role !== 'Giảng viên') {
+    // Cho phép Giảng viên, Lãnh đạo bộ môn và Lãnh đạo khoa
+    if (!['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền chỉnh sửa đề cương' });
     }
 
@@ -3166,7 +3179,8 @@ app.post('/supervisor/manage-outline/:proposalId', authenticateJWT, outlineUploa
 // API: GVHD chính phê duyệt/từ chối file đề cương
 app.put('/supervisor/review-outline/:proposalId', authenticateJWT, async (req, res) => {
   try {
-    if (req.user.role !== 'Giảng viên') {
+    // Cho phép Giảng viên, Lãnh đạo bộ môn và Lãnh đạo khoa
+    if (!['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền phê duyệt đề cương' });
     }
 
@@ -3267,8 +3281,9 @@ app.get('/download-outline/:proposalId/:filename', authenticateJWT, async (req, 
     // Kiểm tra quyền truy cập
     const student = await User.findById(req.user._id);
     const isStudent = req.user.role === 'Sinh viên' && student.studentInfo.studentId === proposal.studentId;
-    const isPrimarySupervisor = req.user.role === 'Giảng viên' && req.user.username === proposal.primarySupervisor;
-    const isSecondarySupervisor = req.user.role === 'Giảng viên' && req.user.username === proposal.secondarySupervisor;
+    // Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa là GVHD
+    const isPrimarySupervisor = ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role) && req.user.username === proposal.primarySupervisor;
+    const isSecondarySupervisor = ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role) && req.user.username === proposal.secondarySupervisor;
     
     // LĐBM và Lãnh đạo khoa chỉ được xem khi outline đã được GVHD phê duyệt
     const isHead = req.user.role === 'Lãnh đạo bộ môn' && proposal.outlineStatus === 'approved';
@@ -3304,7 +3319,8 @@ app.delete('/delete-outline/:proposalId/:filename', authenticateJWT, async (req,
     // Kiểm tra quyền xóa
     const student = await User.findById(req.user._id);
     const isStudent = req.user.role === 'Sinh viên' && student.studentInfo.studentId === proposal.studentId;
-    const isPrimarySupervisor = req.user.role === 'Giảng viên' && req.user.username === proposal.primarySupervisor;
+    // Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa là GVHD
+    const isPrimarySupervisor = ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role) && req.user.username === proposal.primarySupervisor;
 
     if (!isStudent && !isPrimarySupervisor) {
       return res.status(403).json({ message: 'Bạn không có quyền xóa file này' });

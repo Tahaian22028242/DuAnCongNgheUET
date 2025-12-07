@@ -4,10 +4,10 @@ import {
   Typography, Box, Paper, 
   Button, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, Alert, Chip, CircularProgress,
-  Accordion, AccordionSummary,
-  AccordionDetails, Grid, Autocomplete, IconButton, Tooltip
+  Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Grid, Autocomplete, IconButton, Tooltip,
+  List, ListItem, ListItemText, ListItemSecondaryAction
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
@@ -301,42 +301,101 @@ function SupervisorTopics() {
               Tổng cộng: {proposals.length} đề xuất
             </Typography>
 
-            {proposals.map((proposal) => (
-              <Accordion key={proposal._id} sx={{ mb: 2 }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6">{proposal.topicTitle}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Học viên: {proposal.studentName} ({proposal.studentId})
-                      </Typography>
-                      {proposal.studentFaculty && (
-                        <Typography variant="body2" color="text.secondary">
-                          Khoa: {proposal.studentFaculty} | Ngành: {proposal.studentMajor}
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                    <TableCell><strong>STT</strong></TableCell>
+                    <TableCell><strong>Tên đề tài</strong></TableCell>
+                    <TableCell><strong>Học viên</strong></TableCell>
+                    <TableCell><strong>Khoa</strong></TableCell>
+                    <TableCell><strong>Ngành</strong></TableCell>
+                    <TableCell><strong>GVHD phụ</strong></TableCell>
+                    <TableCell><strong>Trạng thái</strong></TableCell>
+                    <TableCell><strong>Hành động</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {proposals.map((proposal, index) => (
+                    <TableRow key={proposal._id} hover>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {proposal.topicTitle}
                         </Typography>
-                      )}
-                    </Box>
-                    <Chip
-                      label={getStatusText(proposal.status)}
-                      color={getStatusColor(proposal.status)}
-                      size="small"
-                    />
-                  </Box>
-                </AccordionSummary>
-                <AccordionDetails>
+                      </TableCell>
+                      <TableCell>
+                        {proposal.studentName}
+                        <br />
+                        <Typography variant="caption" color="text.secondary">
+                          {proposal.studentId}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{proposal.studentFaculty || 'N/A'}</TableCell>
+                      <TableCell>{proposal.studentMajor || 'N/A'}</TableCell>
+                      <TableCell>
+                        {proposal.secondarySupervisorName || proposal.secondarySupervisor || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={getStatusText(proposal.status)}
+                          color={getStatusColor(proposal.status)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => {
+                            setSelectedProposal(proposal);
+                            setReviewDialog(false);
+                          }}
+                        >
+                          Xem chi tiết
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        )}
+
+        {/* Dialog xem chi tiết đề tài */}
+        <Dialog 
+          open={selectedProposal !== null && !reviewDialog} 
+          onClose={() => setSelectedProposal(null)} 
+          maxWidth="lg" 
+          fullWidth
+        >
+          {selectedProposal && (
+            <>
+              <DialogTitle>
+                Chi tiết đề tài: {selectedProposal.topicTitle}
+                <Chip
+                  label={getStatusText(selectedProposal.status)}
+                  color={getStatusColor(selectedProposal.status)}
+                  size="small"
+                  sx={{ ml: 2 }}
+                />
+              </DialogTitle>
+              <DialogContent dividers>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={8}>
                       <Typography variant="subtitle2" gutterBottom>
-                        <strong>Học viên:</strong> {proposal.studentName} ({proposal.studentId})
+                        <strong>Học viên:</strong> {selectedProposal.studentName} ({selectedProposal.studentId})
                       </Typography>
                       <Typography variant="subtitle2" gutterBottom>
-                        <strong>Khoa:</strong> {proposal.studentFaculty || 'N/A'}
+                        <strong>Khoa:</strong> {selectedProposal.studentFaculty || 'N/A'}
                       </Typography>
                       <Typography variant="subtitle2" gutterBottom>
-                        <strong>Ngành:</strong> {proposal.studentMajor || 'N/A'}
+                        <strong>Ngành:</strong> {selectedProposal.studentMajor || 'N/A'}
                       </Typography>
                       <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
-                        <strong>Ngày gửi:</strong> {formatDate(proposal.submittedAt)}
+                        <strong>Ngày gửi:</strong> {formatDate(selectedProposal.submittedAt)}
                       </Typography>
 
                       <Typography variant="subtitle1" gutterBottom>
@@ -344,24 +403,24 @@ function SupervisorTopics() {
                       </Typography>
                       <Paper sx={{ p: 2, bgcolor: '#f5f5f5', mb: 2 }}>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                          {proposal.content}
+                          {selectedProposal.content}
                         </Typography>
                       </Paper>
 
                       <Typography variant="subtitle2" gutterBottom>
-                        <strong>Giảng viên hướng dẫn chính:</strong> {proposal.primarySupervisorName || proposal.primarySupervisor}
+                        <strong>Giảng viên hướng dẫn chính:</strong> {selectedProposal.primarySupervisorName || selectedProposal.primarySupervisor}
                       </Typography>
-                      {proposal.secondarySupervisor && (
+                      {selectedProposal.secondarySupervisor && (
                         <Typography variant="subtitle2" gutterBottom>
-                          <strong>Giảng viên hướng dẫn phụ:</strong> {proposal.secondarySupervisorName || proposal.secondarySupervisor}
+                          <strong>Giảng viên hướng dẫn phụ:</strong> {selectedProposal.secondarySupervisorName || selectedProposal.secondarySupervisor}
                         </Typography>
                       )}
                       
                       <Typography variant="subtitle2" gutterBottom>
                         <strong>Tài liệu đính kèm:</strong>
-                        {proposal.outlineFiles && proposal.outlineFiles.length > 0 ? (
+                        {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 ? (
                           <Box sx={{ mt: 1 }}>
-                            {proposal.outlineFiles.map((file, index) => (
+                            {selectedProposal.outlineFiles.map((file, index) => (
                               <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, width: '100%' }}>
                                 <Box sx={{ flex: 1, minWidth: 0 }}>
                                   <Tooltip title={file.originalName || file.originalname || file.filename}>
@@ -376,20 +435,21 @@ function SupervisorTopics() {
 
                                 <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
                                   <Tooltip title="Xem">
-                                    <IconButton size="small" onClick={() => handleViewFile(proposal._id, file)} sx={{ p: 0.4, width: 32, height: 32 }}>
+                                    <IconButton size="small" onClick={() => handleViewFile(selectedProposal._id, file)} sx={{ p: 0.4, width: 32, height: 32 }}>
                                       <VisibilityIcon fontSize="small" />
                                     </IconButton>
                                   </Tooltip>
 
                                   <Tooltip title="Tải xuống">
-                                    <IconButton size="small" onClick={() => handleDownloadFile(proposal._id, file.filename, file.originalName || file.originalname)} sx={{ p: 0.4, width: 32, height: 32 }}>
+                                    <IconButton size="small" onClick={() => handleDownloadFile(selectedProposal._id, file.filename, file.originalName || file.originalname)} sx={{ p: 0.4, width: 32, height: 32 }}>
                                       <DownloadIcon fontSize="small" />
                                     </IconButton>
                                   </Tooltip>
 
-                                  {user.role === 'Giảng viên' && user.username === proposal.primarySupervisor && proposal.outlineStatus !== 'approved' && (
+                                  {/* Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa xóa file */}
+                                  {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === selectedProposal.primarySupervisor && selectedProposal.outlineStatus !== 'approved' && (
                                     <Tooltip title="Xóa">
-                                      <IconButton size="small" color="error" onClick={() => handleDeleteFile(proposal._id, file.filename)} sx={{ p: 0.4, width: 32, height: 32 }}>
+                                      <IconButton size="small" color="error" onClick={() => handleDeleteFile(selectedProposal._id, file.filename)} sx={{ p: 0.4, width: 32, height: 32 }}>
                                         <DeleteIcon fontSize="small" />
                                       </IconButton>
                                     </Tooltip>
@@ -403,19 +463,19 @@ function SupervisorTopics() {
                         )}
                       </Typography>
 
-                      {proposal.supervisorComments && (
+                      {selectedProposal.supervisorComments && (
                         <>
                           <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
                             <strong>Nhận xét của giảng viên:</strong>
                           </Typography>
                           <Paper sx={{ p: 2, bgcolor: '#e3f2fd' }}>
                             <Typography variant="body2">
-                              {proposal.supervisorComments}
+                              {selectedProposal.supervisorComments}
                             </Typography>
                           </Paper>
-                          {proposal.reviewedAt && (
+                          {selectedProposal.reviewedAt && (
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                              Đánh giá lúc: {formatDate(proposal.reviewedAt)}
+                              Đánh giá lúc: {formatDate(selectedProposal.reviewedAt)}
                             </Typography>
                           )}
                         </>
@@ -424,9 +484,9 @@ function SupervisorTopics() {
 
                     <Grid item xs={12} md={4}>
                       {/* Kiểm tra xem user có phải là GVHD chính không */}
-                      {proposal.primarySupervisor === user.username ? (
+                      {selectedProposal.primarySupervisor === user.username ? (
                         <>
-                          {proposal.status === 'pending' && (
+                          {selectedProposal.status === 'pending' && (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                               <Alert severity="info" sx={{ mb: 1 }}>
                                 Bạn là GVHD chính - có quyền phê duyệt/chỉnh sửa
@@ -435,7 +495,7 @@ function SupervisorTopics() {
                                 variant="contained"
                                 color="success"
                                 startIcon={<CheckIcon />}
-                                onClick={() => handleReview(proposal, 'approved')}
+                                onClick={() => handleReview(selectedProposal, 'approved')}
                                 fullWidth
                               >
                                 Phê duyệt
@@ -444,14 +504,14 @@ function SupervisorTopics() {
                                 variant="contained"
                                 color="error"
                                 startIcon={<CloseIcon />}
-                                onClick={() => handleReview(proposal, 'rejected')}
+                                onClick={() => handleReview(selectedProposal, 'rejected')}
                                 fullWidth
                               >
                                 Từ chối
                               </Button>
                             </Box>
                           )}
-                          {proposal.status !== 'pending' && !['rejected', 'rejected_by_head', 'rejected_by_faculty_leader'].includes(proposal.status) && (
+                          {selectedProposal.status !== 'pending' && !['rejected', 'rejected_by_head', 'rejected_by_faculty_leader'].includes(selectedProposal.status) && (
                             <Box>
                               <Alert severity="info" sx={{ mb: 1 }}>
                                 Bạn là GVHD chính - có quyền chỉnh sửa
@@ -459,7 +519,7 @@ function SupervisorTopics() {
                               <Button
                                 variant="outlined"
                                 startIcon={<EditIcon />}
-                                onClick={() => handleReview(proposal, proposal.status)}
+                                onClick={() => handleReview(selectedProposal, selectedProposal.status)}
                                 fullWidth
                               >
                                 Chỉnh sửa đánh giá
@@ -473,19 +533,19 @@ function SupervisorTopics() {
                         </Alert>
                       )}
 
-                      {/* Upload area for primary supervisor */}
-                      {user.role === 'Giảng viên' && user.username === proposal.primarySupervisor && proposal.outlineStatus !== 'approved' && (
+                      {/* Upload area for primary supervisor - Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa */}
+                      {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === selectedProposal.primarySupervisor && selectedProposal.outlineStatus !== 'approved' && (
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                           <Typography variant="subtitle2" sx={{ mb: 1 }}>Upload thêm file (GVHD):</Typography>
                           <input
                             accept=".pdf,.doc,.docx,.txt,.zip,.rar"
                             style={{ display: 'none' }}
-                            id={`supervisor-upload-${proposal._id}`}
+                            id={`supervisor-upload-${selectedProposal._id}`}
                             multiple
                             type="file"
                             onChange={handleFileSelect}
                           />
-                          <label htmlFor={`supervisor-upload-${proposal._id}`}>
+                          <label htmlFor={`supervisor-upload-${selectedProposal._id}`}>
                             <Button variant="outlined" component="span" startIcon={<UploadFileIcon />} size="small" sx={{ mb: 1 }}>
                               Chọn file
                             </Button>
@@ -507,7 +567,7 @@ function SupervisorTopics() {
                           />
                           <Box sx={{ display: 'flex', gap: 1 }}>
                             <Button
-                              onClick={() => handleSupervisorUploadFiles(proposal._id)}
+                              onClick={() => handleSupervisorUploadFiles(selectedProposal._id)}
                               variant="contained"
                               size="small"
                               disabled={uploadingFiles || selectedFiles.length === 0}
@@ -526,11 +586,13 @@ function SupervisorTopics() {
                       )}
                     </Grid>
                   </Grid>
-                </AccordionDetails>
-              </Accordion>
-            ))}
-          </>
-        )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setSelectedProposal(null)}>Đóng</Button>
+              </DialogActions>
+            </>
+          )}
+        </Dialog>
 
         {/* Review Dialog */}
         <Dialog open={reviewDialog} onClose={() => setReviewDialog(false)} maxWidth="md" fullWidth>

@@ -25,7 +25,7 @@ function StudentBatchDetail() {
     const [loading, setLoading] = useState(true);
     const [addDialogOpen, setAddDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
-    const [studentForm, setStudentForm] = useState({ studentId: '', fullName: '', birthDate: '', major: '' });
+    const [studentForm, setStudentForm] = useState({ studentId: '', fullName: '', birthDate: '', faculty: '', major: '' });
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteOption, setDeleteOption] = useState('batchOnly');
@@ -182,8 +182,8 @@ function StudentBatchDetail() {
             const requestBody = {
                 fullName: studentForm.fullName,
                 birthDate: studentForm.birthDate,
-                major: studentForm.major,
-                faculty: studentForm.faculty
+                faculty: studentForm.faculty,
+                major: studentForm.major
             };
 
             // Nếu mã học viên thay đổi, thêm newStudentId
@@ -557,6 +557,7 @@ function StudentBatchDetail() {
                                                                                         studentId: student.studentId,
                                                                                         fullName: student.fullName,
                                                                                         birthDate: student.birthDate ? new Date(student.birthDate).toISOString().split('T')[0] : '',
+                                                                                        faculty: student.faculty || '',
                                                                                         major: student.major
                                                                                     });
                                                                                     setEditDialogOpen(true);
@@ -631,7 +632,7 @@ function StudentBatchDetail() {
                                         variant="contained"
                                         startIcon={<AddIcon />}
                                         sx={{ mb: 2 }}
-                                        onClick={() => { setStudentForm({ studentId: '', fullName: '', birthDate: '', major: '' }); setAddDialogOpen(true); }}
+                                        onClick={() => { setStudentForm({ studentId: '', fullName: '', birthDate: '', faculty: '', major: '' }); setAddDialogOpen(true); }}
                                     >
                                         Thêm học viên
                                     </Button>
@@ -649,14 +650,13 @@ function StudentBatchDetail() {
                         )}
 
                         {/* Dialog thêm học viên */}
-                        <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)}>
+                        <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
                             <DialogTitle>Thêm học viên mới</DialogTitle>
                             <DialogContent>
                                 <TextField label="Mã học viên" value={studentForm.studentId} onChange={e => setStudentForm({ ...studentForm, studentId: e.target.value })} fullWidth sx={{ mb: 2 }} />
                                 <TextField label="Họ và tên" value={studentForm.fullName} onChange={e => setStudentForm({ ...studentForm, fullName: e.target.value })} fullWidth sx={{ mb: 2 }} />
                                 <TextField label="Ngày sinh" type="date" value={studentForm.birthDate} onChange={e => setStudentForm({ ...studentForm, birthDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} sx={{ mb: 2 }} />
                                 <TextField label="Ngành học" value={studentForm.major} onChange={e => setStudentForm({ ...studentForm, major: e.target.value })} fullWidth sx={{ mb: 2 }} />
-                                <TextField label="Khoa" value={studentForm.faculty} onChange={e => setStudentForm({ ...studentForm, faculty: e.target.value })} fullWidth sx={{ mb: 2 }} />
                             </DialogContent>
                             <DialogActions>
                                 <Button onClick={() => setAddDialogOpen(false)}>Hủy</Button>
@@ -693,6 +693,18 @@ function StudentBatchDetail() {
                                         InputLabelProps={{ shrink: true }}
                                         sx={{ mb: 2 }}
                                     />
+                                    <TextField
+                                        label="Khoa"
+                                        value={studentForm.faculty}
+                                        onChange={e => setStudentForm({ ...studentForm, faculty: e.target.value })}
+                                        fullWidth
+                                        select
+                                        sx={{ mb: 2 }}
+                                    >
+                                        {uniqueFaculties.map(f => (
+                                            <MenuItem key={f} value={f}>{f}</MenuItem>
+                                        ))}
+                                    </TextField>
                                     <TextField
                                         label="Ngành học"
                                         value={studentForm.major}

@@ -3,8 +3,12 @@ import AppLayout from './AppLayout';
 import { 
   Box, Paper, Typography, CircularProgress, Alert, Button, Dialog, DialogTitle, 
   DialogContent, DialogActions, TextField, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow 
+  TableHead, TableRow, List, ListItem, ListItemText, ListItemSecondaryAction,
+  IconButton, Tooltip
 } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import axios from 'axios';
 
 function FacultyLeaderTopics() {
   const [loading, setLoading] = useState(true);
@@ -175,6 +179,69 @@ function FacultyLeaderTopics() {
                       <Typography sx={{ mt: 2 }}><strong>Nhận xét của LĐBM:</strong></Typography>
                       <Typography sx={{ mt: 1 }}>{selected.headComments}</Typography>
                     </>
+                  )}
+                  
+                  {/* Hiển thị file đề cương */}
+                  <Typography sx={{ mt: 2 }}><strong>Tài liệu đính kèm:</strong></Typography>
+                  {selected.outlineFiles && selected.outlineFiles.length > 0 ? (
+                    <List dense sx={{ bgcolor: '#f5f5f5', borderRadius: 1, mt: 1 }}>
+                      {selected.outlineFiles.map((file, idx) => (
+                        <ListItem key={idx}>
+                          <ListItemText
+                            primary={file.originalName || file.filename}
+                            secondary={`Upload bởi: ${file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên'}`}
+                          />
+                          <ListItemSecondaryAction>
+                            <Tooltip title="Xem">
+                              <IconButton
+                                edge="end"
+                                onClick={async () => {
+                                  try {
+                                    const res = await axios.get(
+                                      `http://localhost:5000/view-outline/${selected._id}/${file.filename}`,
+                                      { responseType: 'blob', withCredentials: true }
+                                    );
+                                    const url = window.URL.createObjectURL(res.data);
+                                    window.open(url, '_blank');
+                                  } catch (err) {
+                                    alert('Không thể xem file');
+                                  }
+                                }}
+                                sx={{ mr: 1 }}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Tải xuống">
+                              <IconButton
+                                edge="end"
+                                onClick={async () => {
+                                  try {
+                                    const res = await axios.get(
+                                      `http://localhost:5000/download-outline/${selected._id}/${file.filename}`,
+                                      { responseType: 'blob', withCredentials: true }
+                                    );
+                                    const url = window.URL.createObjectURL(res.data);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = file.originalName || file.filename;
+                                    link.click();
+                                  } catch (err) {
+                                    alert('Không thể tải file');
+                                  }
+                                }}
+                              >
+                                <DownloadIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Chưa có tài liệu đính kèm
+                    </Typography>
                   )}
                 </DialogContent>
                 <DialogActions>
