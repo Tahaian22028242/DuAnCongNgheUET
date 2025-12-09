@@ -300,7 +300,7 @@ function FacultiesInfo() {
                 )}
               </Paper>
             )}
-            <Button onClick={() => navigate('/upload-lecturers')} sx={{ cursor: 'pointer', py: 0.5 }}>
+            <Button onClick={() => navigate('/upload-lecturers')} sx={{ cursor: 'pointer', py: 0.5, width: '100%' }}>
               <UploadFileIcon sx={{ mr: 1, justifyContent: 'center' }} />
               Tải lên danh sách giảng viên mới
             </Button>

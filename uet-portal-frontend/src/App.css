@@ -20,16 +20,29 @@
 }
 
 button {
-  width: 100%;
+  /* Keep basic button spacing but do NOT set colors here —
+     Material-UI buttons (color="primary"/"error" etc.) should control colors.
+     Setting global background/color here caused color overrides on MUI Buttons. */
   padding: 10px;
-  background-color: #1e90ff;
-  color: white;
   border: none;
   border-radius: 5px;
   font-size: 16px;
-  cursor: pointer;
+  width: auto; /* avoid forcing full-width on all buttons (MUI Buttons should size naturally) */
 }
 
-button:hover {
-  background-color: #007bff;
+.btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: #fff;
+  background-color: #1e90ff; /* default for .btn helper class */
+  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease;
+}
+
+.btn:hover {
+  /* Only apply the darken transform to our helper .btn class. Do not target all native buttons. */
+  filter: brightness(0.92);
+  transform: translateY(-1px);
 }

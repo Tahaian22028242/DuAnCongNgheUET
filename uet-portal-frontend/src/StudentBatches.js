@@ -380,46 +380,50 @@ function StudentBatches() {
             <div className="dashboard">
                 <div className="dashboard-content">
                     {content()}
+                    {/* Chỉ quản trị viên mới được phép các chức năng quản lý đợt học viên */}
+                    {user.role === 'Quản trị viên' && (
+                        <>
+                            <Button onClick={() => navigate('/upload')} sx={{ cursor: 'pointer', py: 0.5, mb: 1 }}>
+                                <UploadFileIcon sx={{ mr: 1, justifyContent: 'center' }} />
+                                Tải lên đợt học viên mới
+                            </Button>
 
-                    <Button onClick={() => navigate('/upload')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                        <UploadFileIcon sx={{ mr: 1, justifyContent: 'center' }} />
-                        Tải lên đợt học viên mới
-                    </Button>
-
-                    {/* Delete batch confirmation dialog */}
-                    <Dialog open={deleteBatchDialogOpen} onClose={() => setDeleteBatchDialogOpen(false)}>
-                        <DialogTitle>Xóa toàn bộ đợt học viên</DialogTitle>
-                        <DialogContent>
-                            <Typography sx={{ mb: 2 }}>
-                                Bạn sắp xóa đợt <strong>{selectedBatchToDelete?.batchName}</strong>.
-                            </Typography>
-                            <Typography sx={{ mb: 1 }}>Chọn phương án:</Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-                                <Button
-                                    variant={deleteBatchOption === 'batchOnly' ? 'contained' : 'outlined'}
-                                    onClick={() => setDeleteBatchOption('batchOnly')}
-                                    fullWidth
-                                >
-                                    Chỉ xóa bản ghi đợt (không xóa tài khoản học viên)
-                                </Button>
-                                <Button
-                                    variant={deleteBatchOption === 'deleteAccounts' ? 'contained' : 'outlined'}
-                                    color="error"
-                                    onClick={() => setDeleteBatchOption('deleteAccounts')}
-                                    fullWidth
-                                >
-                                    Xóa đợt và xóa tài khoản học viên trong đợt
-                                </Button>
-                            </Box>
-                            <Typography variant="caption" color="text.secondary">
-                                Lưu ý: Xóa tài khoản học viên sẽ xóa người dùng có username trùng mã học viên (role = "Sinh viên").
-                            </Typography>
-                        </DialogContent>
-                        <DialogActions>
-                            <Button onClick={() => setDeleteBatchDialogOpen(false)}>Hủy</Button>
-                            <Button onClick={handleConfirmDeleteBatch} color="error" variant="contained">Xóa</Button>
-                        </DialogActions>
-                    </Dialog>
+                            {/* Delete batch confirmation dialog */}
+                            <Dialog open={deleteBatchDialogOpen} onClose={() => setDeleteBatchDialogOpen(false)}>
+                                <DialogTitle>Xóa toàn bộ đợt học viên</DialogTitle>
+                                <DialogContent>
+                                    <Typography sx={{ mb: 2 }}>
+                                        Bạn sắp xóa đợt <strong>{selectedBatchToDelete?.batchName}</strong>.
+                                    </Typography>
+                                    <Typography sx={{ mb: 1 }}>Chọn phương án:</Typography>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                                        <Button
+                                            variant={deleteBatchOption === 'batchOnly' ? 'contained' : 'outlined'}
+                                            onClick={() => setDeleteBatchOption('batchOnly')}
+                                            fullWidth
+                                        >
+                                            Chỉ xóa bản ghi đợt (không xóa tài khoản học viên)
+                                        </Button>
+                                        <Button
+                                            variant={deleteBatchOption === 'deleteAccounts' ? 'contained' : 'outlined'}
+                                            color="error"
+                                            onClick={() => setDeleteBatchOption('deleteAccounts')}
+                                            fullWidth
+                                        >
+                                            Xóa đợt và xóa tài khoản học viên trong đợt
+                                        </Button>
+                                    </Box>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Lưu ý: Xóa tài khoản học viên sẽ xóa người dùng có username trùng mã học viên (role = "Sinh viên").
+                                    </Typography>
+                                </DialogContent>
+                                <DialogActions>
+                                    <Button onClick={() => setDeleteBatchDialogOpen(false)}>Hủy</Button>
+                                    <Button onClick={handleConfirmDeleteBatch} color="error" variant="contained">Xóa</Button>
+                                </DialogActions>
+                            </Dialog>
+                        </>
+                    )}
                 </div>
             </div>
         </AppLayout>

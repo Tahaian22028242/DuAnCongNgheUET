@@ -281,7 +281,7 @@ function DepartmentMajorMapping() {
                 </FormControl>
 
                 <Alert severity="warning" sx={{ mt: 2 }}>
-                  Lưu ý: Chỉ chọn các ngành thuộc cùng Khoa với bộ môn/phòng thí nghiệm
+                  Lưu ý: Chỉ chọn các ngành thuộc cùng Khoa với Bộ môn/phòng thí nghiệm
                 </Alert>
               </DialogContent>
               <DialogActions>

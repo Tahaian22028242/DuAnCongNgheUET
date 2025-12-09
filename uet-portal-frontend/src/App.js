@@ -22,7 +22,6 @@ import Calendar from './Calendar'; // Import the new Calendar component
 import Notifications from './Notifications'; // Import the Notifications component
 import FacultyLeaderTopics from './FacultyLeaderTopics';
 import DepartmentMajorMapping from './DepartmentMajorMapping';
-import TopicArchive from './TopicArchive';
 import TopicManagement from './TopicManagement';
 import FacultyLeaderManagement from './FacultyLeaderManagement';
 
@@ -187,7 +186,7 @@ function App() {
                 path="/topic-archive"
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
-                        <TopicArchive />
+                        <TopicManagement />
                     </ProtectedRoute>
                 }
             />

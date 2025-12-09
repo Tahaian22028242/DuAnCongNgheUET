@@ -47,7 +47,7 @@
     box-sizing: border-box;
   }
   
-  button {
+  .login-container button {
     width: 100%;
     padding: 10px;
     background-color: #1e90ff;
@@ -57,7 +57,7 @@
     font-size: 16px;
     cursor: pointer;
   }
-  
-  button:hover {
+
+  .login-container button:hover {
     background-color: #007bff;
   }

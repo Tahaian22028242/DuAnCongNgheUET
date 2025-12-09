@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import multer from 'multer';
 import exceljs from 'exceljs';
 import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ mongoose
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: 'http://localhost:3002',
   credentials: true,
 }));
 app.use(express.json());
@@ -188,6 +189,52 @@ app.post('/register', async (req, res) => {
     res.status(201).json({ message: 'Đăng ký thành công', user: { username, role } });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server khi đăng ký', error: error.message });
+  }
+});
+
+// API: Học viên xóa đề xuất đề tài (chỉ khi đề tài chưa được duyệt)
+app.delete('/student/delete-topic/:proposalId', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Sinh viên') {
+      return res.status(403).json({ message: 'Chỉ học viên mới có quyền xóa đề xuất' });
+    }
+
+    const { proposalId } = req.params;
+    const proposal = await TopicProposal.findById(proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
+
+    const student = await User.findById(req.user._id);
+    if (!student || !student.studentInfo || student.studentInfo.studentId !== proposal.studentId) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa đề tài này' });
+    }
+
+    // Chỉ cho phép xóa khi đề tài chưa được duyệt (các trạng thái có thể chỉnh sửa)
+    const editableStatuses = ['pending', 'rejected', 'rejected_by_head', 'rejected_by_faculty_leader'];
+    if (!editableStatuses.includes(proposal.status)) {
+      return res.status(400).json({ message: 'Không thể xóa đề tài đã được phê duyệt hoặc đang chờ phê duyệt cấp cao hơn' });
+    }
+
+    // Xóa các file liên quan trên đĩa
+    if (proposal.outlineFiles && proposal.outlineFiles.length > 0) {
+      for (const f of proposal.outlineFiles) {
+        try {
+          if (f.path && fs.existsSync(f.path)) {
+            fs.unlinkSync(f.path);
+          }
+        } catch (e) {
+          console.error('Lỗi khi xóa file khi xóa đề tài:', f.path, e.message);
+        }
+      }
+    }
+
+    await TopicProposal.findByIdAndDelete(proposalId);
+
+    res.json({ message: 'Đã xóa đề tài thành công' });
+  } catch (error) {
+    console.error('Error deleting proposal:', error);
+    res.status(500).json({ message: 'Lỗi server khi xóa đề tài', error: error.message });
   }
 });
 // API đăng nhập
@@ -3269,6 +3316,47 @@ app.put('/supervisor/review-outline/:proposalId', authenticateJWT, async (req, r
 });
 
 // API: Download file đề cương
+// API: View file đề cương inline (for browser preview)
+app.get('/view-outline/:proposalId/:filename', authenticateJWT, async (req, res) => {
+  try {
+    const { proposalId, filename } = req.params;
+
+    const proposal = await TopicProposal.findById(proposalId);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+    }
+
+    // Quyền truy cập giống với download
+    const student = await User.findById(req.user._id);
+    const isStudent = req.user.role === 'Sinh viên' && student?.studentInfo?.studentId === proposal.studentId;
+    const isPrimarySupervisor = ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role) && req.user.username === proposal.primarySupervisor;
+    const isSecondarySupervisor = ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role) && req.user.username === proposal.secondarySupervisor;
+    const isHead = req.user.role === 'Lãnh đạo bộ môn' && proposal.outlineStatus === 'approved';
+    const isFacultyLeader = req.user.role === 'Lãnh đạo khoa' && proposal.outlineStatus === 'approved';
+
+    if (!isStudent && !isPrimarySupervisor && !isSecondarySupervisor && !isHead && !isFacultyLeader) {
+      return res.status(403).json({ message: 'Bạn không có quyền xem file này' });
+    }
+
+    const file = proposal.outlineFiles.find(f => f.filename === filename);
+    if (!file) {
+      return res.status(404).json({ message: 'Không tìm thấy file' });
+    }
+
+    const absolutePath = path.resolve(file.path);
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ message: 'File không tồn tại trên máy chủ' });
+    }
+
+    // Set inline disposition so browser attempts to preview
+    res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+    return res.sendFile(absolutePath);
+  } catch (error) {
+    console.error('Error viewing outline:', error);
+    return res.status(500).json({ message: 'Lỗi server khi xem file', error: error.message });
+  }
+});
+
 app.get('/download-outline/:proposalId/:filename', authenticateJWT, async (req, res) => {
   try {
     const { proposalId, filename } = req.params;

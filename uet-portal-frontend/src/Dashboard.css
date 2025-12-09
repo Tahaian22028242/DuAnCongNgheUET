@@ -26,10 +26,15 @@
   font-size: 16px;
   cursor: pointer;
 }
-
 .dashboard button:hover {
-  background-color: #265728;
+  /* Darken whatever the button background is (works for red/green/blue etc.) */
+  filter: brightness(0.9);
+  transform: translateY(-1px);
   color: #ffffff;
+}
+
+.dashboard button {
+  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease;
 }
 
 .dashboard-content .MuiPaper-root:hover .MuiTypography-root
