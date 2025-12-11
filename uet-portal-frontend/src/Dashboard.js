@@ -10,7 +10,7 @@ function Dashboard() {
       <div className="dashboard-content">
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h4" gutterBottom>
-            Xin chào {user.userInfo?.fullName || user.studentInfo?.fullName || user.username || 'Khách'}
+            Xin chào {user.fullName || user.userInfo?.fullName || user.studentInfo?.fullName || user.username || 'Khách'}
           </Typography>
           <Typography variant="subtitle1">
             Role: {user.role || 'Không xác định'}

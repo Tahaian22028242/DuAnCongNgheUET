@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Typography, Box, Paper, 
+  Typography, Box, Paper,
   Button, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, Alert, Chip, CircularProgress,
   Table, TableBody, TableCell, TableContainer,
@@ -88,6 +88,7 @@ function SupervisorTopics() {
       content: proposal.content,
       secondarySupervisor: proposal.secondarySupervisor || ''
     });
+    // Duyệt hoặc từ chối xong thì tự động đóng Dialog xem chi tiết
     setReviewDialog(true);
   };
 
@@ -365,11 +366,11 @@ function SupervisorTopics() {
         )}
 
         {/* Dialog xem chi tiết đề tài */}
-        <Dialog 
-          open={selectedProposal !== null && !reviewDialog} 
-          onClose={() => setSelectedProposal(null)} 
-          maxWidth="lg" 
-          fullWidth
+        <Dialog
+          open={selectedProposal !== null && !reviewDialog}
+          onClose={() => setSelectedProposal(null)}
+          maxWidth="lg"
+          width='auto'
         >
           {selectedProposal && (
             <>
@@ -383,209 +384,211 @@ function SupervisorTopics() {
                 />
               </DialogTitle>
               <DialogContent dividers>
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={8}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        <strong>Học viên:</strong> {selectedProposal.studentName} ({selectedProposal.studentId})
-                      </Typography>
-                      <Typography variant="subtitle2" gutterBottom>
-                        <strong>Khoa:</strong> {selectedProposal.studentFaculty || 'N/A'}
-                      </Typography>
-                      <Typography variant="subtitle2" gutterBottom>
-                        <strong>Ngành:</strong> {selectedProposal.studentMajor || 'N/A'}
-                      </Typography>
-                      <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
-                        <strong>Ngày gửi:</strong> {formatDate(selectedProposal.submittedAt)}
-                      </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={8}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      <strong>Học viên:</strong> {selectedProposal.studentName} ({selectedProposal.studentId})
+                    </Typography>
+                    <Typography variant="subtitle2" gutterBottom>
+                      <strong>Khoa:</strong> {selectedProposal.studentFaculty || 'N/A'}
+                    </Typography>
+                    <Typography variant="subtitle2" gutterBottom>
+                      <strong>Ngành:</strong> {selectedProposal.studentMajor || 'N/A'}
+                    </Typography>
+                    <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
+                      <strong>Ngày gửi:</strong> {formatDate(selectedProposal.submittedAt)}
+                    </Typography>
 
-                      <Typography variant="subtitle1" gutterBottom>
-                        <strong>Nội dung đề tài:</strong>
+                    <Typography variant="subtitle1" gutterBottom>
+                      <strong>Nội dung đề tài:</strong>
+                    </Typography>
+                    <Paper sx={{ p: 2, bgcolor: '#f5f5f5', mb: 2 }}>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {selectedProposal.content}
                       </Typography>
-                      <Paper sx={{ p: 2, bgcolor: '#f5f5f5', mb: 2 }}>
-                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                          {selectedProposal.content}
-                        </Typography>
-                      </Paper>
+                    </Paper>
 
+                    <Typography variant="subtitle2" gutterBottom>
+                      <strong>Giảng viên hướng dẫn chính:</strong> {selectedProposal.primarySupervisorName || selectedProposal.primarySupervisor}
+                    </Typography>
+                    {selectedProposal.secondarySupervisor && (
                       <Typography variant="subtitle2" gutterBottom>
-                        <strong>Giảng viên hướng dẫn chính:</strong> {selectedProposal.primarySupervisorName || selectedProposal.primarySupervisor}
+                        <strong>Giảng viên hướng dẫn phụ:</strong> {selectedProposal.secondarySupervisorName || selectedProposal.secondarySupervisor}
                       </Typography>
-                      {selectedProposal.secondarySupervisor && (
-                        <Typography variant="subtitle2" gutterBottom>
-                          <strong>Giảng viên hướng dẫn phụ:</strong> {selectedProposal.secondarySupervisorName || selectedProposal.secondarySupervisor}
-                        </Typography>
-                      )}
-                      
-                      <Typography variant="subtitle2" gutterBottom>
-                        <strong>Tài liệu đính kèm:</strong>
-                        {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 ? (
-                          <Box sx={{ mt: 1 }}>
-                            {selectedProposal.outlineFiles.map((file, index) => (
-                              <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, width: '100%' }}>
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Tooltip title={file.originalName || file.originalname || file.filename}>
-                                    <Typography variant="body2" noWrap sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      {file.originalName || file.originalname || file.filename}
-                                    </Typography>
-                                  </Tooltip>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                    {(file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên')} • {file.uploadedAt ? formatDate(file.uploadedAt) : 'N/A'}
+                    )}
+
+                    <Typography variant="subtitle1" gutterBottom>
+                      <strong>Danh sách tài liệu đính kèm:</strong>
+                      <br />
+                      <em style={{ color: 'gray' }}> {selectedProposal.outlineFiles.length} tài liệu</em>
+                      {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 ? (
+                        <Box sx={{ mt: 1 }}>
+                          {selectedProposal.outlineFiles.map((file, index) => (
+                            <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, width: '100%' }}>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Tooltip title={file.originalName || file.originalname || file.filename}>
+                                  <Typography variant="body2" noWrap sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {file.originalName || file.originalname || file.filename}
                                   </Typography>
-                                </Box>
-
-                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
-                                  <Tooltip title="Xem">
-                                    <IconButton size="small" onClick={() => handleViewFile(selectedProposal._id, file)} sx={{ p: 0.4, width: 32, height: 32 }}>
-                                      <VisibilityIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-
-                                  <Tooltip title="Tải xuống">
-                                    <IconButton size="small" onClick={() => handleDownloadFile(selectedProposal._id, file.filename, file.originalName || file.originalname)} sx={{ p: 0.4, width: 32, height: 32 }}>
-                                      <DownloadIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-
-                                  {/* Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa xóa file */}
-                                  {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === selectedProposal.primarySupervisor && selectedProposal.outlineStatus !== 'approved' && (
-                                    <Tooltip title="Xóa">
-                                      <IconButton size="small" color="error" onClick={() => handleDeleteFile(selectedProposal._id, file.filename)} sx={{ p: 0.4, width: 32, height: 32 }}>
-                                        <DeleteIcon fontSize="small" />
-                                      </IconButton>
-                                    </Tooltip>
-                                  )}
-                                </Box>
+                                </Tooltip>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                  {(file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên')} • {file.uploadedAt ? formatDate(file.uploadedAt) : 'N/A'}
+                                </Typography>
                               </Box>
+
+                              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
+                                <Tooltip title="Xem">
+                                  <IconButton size="small" onClick={() => handleViewFile(selectedProposal._id, file)} sx={{ p: 0.4, width: 32, height: 32 }}>
+                                    <VisibilityIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+
+                                <Tooltip title="Tải xuống">
+                                  <IconButton size="small" onClick={() => handleDownloadFile(selectedProposal._id, file.filename, file.originalName || file.originalname)} sx={{ p: 0.4, width: 32, height: 32 }}>
+                                    <DownloadIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+
+                                {/* Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa xóa file */}
+                                {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === selectedProposal.primarySupervisor && selectedProposal.outlineStatus !== 'approved' && (
+                                  <Tooltip title="Xóa">
+                                    <IconButton size="small" color="error" onClick={() => handleDeleteFile(selectedProposal._id, file.filename)} sx={{ p: 0.4, width: 32, height: 32 }}>
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </Box>
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : (
+                        ' Không có tài liệu đính kèm'
+                      )}
+                    </Typography>
+
+                    {selectedProposal.supervisorComments && (
+                      <>
+                        <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                          <strong>Nhận xét của giảng viên:</strong>
+                        </Typography>
+                        <Paper sx={{ p: 2, bgcolor: '#e3f2fd' }}>
+                          <Typography variant="body2">
+                            {selectedProposal.supervisorComments}
+                          </Typography>
+                        </Paper>
+                        {selectedProposal.reviewedAt && (
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                            Đánh giá lúc: {formatDate(selectedProposal.reviewedAt)}
+                          </Typography>
+                        )}
+                      </>
+                    )}
+                  </Grid>
+
+                  <Grid item xs={12} md={4}>
+                    {/* Kiểm tra xem user có phải là GVHD chính không */}
+                    {selectedProposal.primarySupervisor === user.username ? (
+                      <>
+                        {selectedProposal.status === 'pending' && (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Alert severity="info" sx={{ mb: 1 }}>
+                              Bạn là GVHD chính - có quyền phê duyệt/chỉnh sửa
+                            </Alert>
+                            <Button
+                              variant="contained"
+                              color="success"
+                              startIcon={<CheckIcon />}
+                              onClick={() => handleReview(selectedProposal, 'approved')}
+                              fullWidth
+                            >
+                              Phê duyệt
+                            </Button>
+                            <Button
+                              variant="contained"
+                              color="error"
+                              startIcon={<CloseIcon />}
+                              onClick={() => handleReview(selectedProposal, 'rejected')}
+                              fullWidth
+                            >
+                              Từ chối
+                            </Button>
+                          </Box>
+                        )}
+                        {selectedProposal.status !== 'pending' && !['rejected', 'rejected_by_head', 'rejected_by_faculty_leader'].includes(selectedProposal.status) && (
+                          <Box>
+                            <Alert severity="info" sx={{ mb: 1 }}>
+                              Bạn là GVHD chính - có quyền chỉnh sửa
+                            </Alert>
+                            <Button
+                              variant="outlined"
+                              startIcon={<EditIcon />}
+                              onClick={() => handleReview(selectedProposal, selectedProposal.status)}
+                              fullWidth
+                            >
+                              Chỉnh sửa đánh giá
+                            </Button>
+                          </Box>
+                        )}
+                      </>
+                    ) : (
+                      <Alert severity="warning">
+                        Bạn là GVHD phụ - chỉ có quyền xem, không thể chỉnh sửa
+                      </Alert>
+                    )}
+
+                    {/* Upload area for primary supervisor - Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa */}
+                    {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === selectedProposal.primarySupervisor && selectedProposal.outlineStatus !== 'approved' && (
+                      <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Upload thêm file (GVHD):</Typography>
+                        <input
+                          accept=".pdf,.doc,.docx,.txt,.zip,.rar"
+                          style={{ display: 'none' }}
+                          id={`supervisor-upload-${selectedProposal._id}`}
+                          multiple
+                          type="file"
+                          onChange={handleFileSelect}
+                        />
+                        <label htmlFor={`supervisor-upload-${selectedProposal._id}`}>
+                          <Button variant="outlined" component="span" startIcon={<UploadFileIcon />} size="small" sx={{ mb: 1 }}>
+                            Chọn file
+                          </Button>
+                        </label>
+                        {selectedFiles.length > 0 && (
+                          <Box sx={{ mb: 1 }}>
+                            {selectedFiles.map((f, i) => (
+                              <Typography key={i} variant="body2" color="text.secondary">{f.name} ({f.size})</Typography>
                             ))}
                           </Box>
-                        ) : (
-                          ' Không có tài liệu đính kèm'
                         )}
-                      </Typography>
-
-                      {selectedProposal.supervisorComments && (
-                        <>
-                          <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-                            <strong>Nhận xét của giảng viên:</strong>
-                          </Typography>
-                          <Paper sx={{ p: 2, bgcolor: '#e3f2fd' }}>
-                            <Typography variant="body2">
-                              {selectedProposal.supervisorComments}
-                            </Typography>
-                          </Paper>
-                          {selectedProposal.reviewedAt && (
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                              Đánh giá lúc: {formatDate(selectedProposal.reviewedAt)}
-                            </Typography>
-                          )}
-                        </>
-                      )}
-                    </Grid>
-
-                    <Grid item xs={12} md={4}>
-                      {/* Kiểm tra xem user có phải là GVHD chính không */}
-                      {selectedProposal.primarySupervisor === user.username ? (
-                        <>
-                          {selectedProposal.status === 'pending' && (
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                              <Alert severity="info" sx={{ mb: 1 }}>
-                                Bạn là GVHD chính - có quyền phê duyệt/chỉnh sửa
-                              </Alert>
-                              <Button
-                                variant="contained"
-                                color="success"
-                                startIcon={<CheckIcon />}
-                                onClick={() => handleReview(selectedProposal, 'approved')}
-                                fullWidth
-                              >
-                                Phê duyệt
-                              </Button>
-                              <Button
-                                variant="contained"
-                                color="error"
-                                startIcon={<CloseIcon />}
-                                onClick={() => handleReview(selectedProposal, 'rejected')}
-                                fullWidth
-                              >
-                                Từ chối
-                              </Button>
-                            </Box>
-                          )}
-                          {selectedProposal.status !== 'pending' && !['rejected', 'rejected_by_head', 'rejected_by_faculty_leader'].includes(selectedProposal.status) && (
-                            <Box>
-                              <Alert severity="info" sx={{ mb: 1 }}>
-                                Bạn là GVHD chính - có quyền chỉnh sửa
-                              </Alert>
-                              <Button
-                                variant="outlined"
-                                startIcon={<EditIcon />}
-                                onClick={() => handleReview(selectedProposal, selectedProposal.status)}
-                                fullWidth
-                              >
-                                Chỉnh sửa đánh giá
-                              </Button>
-                            </Box>
-                          )}
-                        </>
-                      ) : (
-                        <Alert severity="warning">
-                          Bạn là GVHD phụ - chỉ có quyền xem, không thể chỉnh sửa
-                        </Alert>
-                      )}
-
-                      {/* Upload area for primary supervisor - Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa */}
-                      {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === selectedProposal.primarySupervisor && selectedProposal.outlineStatus !== 'approved' && (
-                        <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                          <Typography variant="subtitle2" sx={{ mb: 1 }}>Upload thêm file (GVHD):</Typography>
-                          <input
-                            accept=".pdf,.doc,.docx,.txt,.zip,.rar"
-                            style={{ display: 'none' }}
-                            id={`supervisor-upload-${selectedProposal._id}`}
-                            multiple
-                            type="file"
-                            onChange={handleFileSelect}
-                          />
-                          <label htmlFor={`supervisor-upload-${selectedProposal._id}`}>
-                            <Button variant="outlined" component="span" startIcon={<UploadFileIcon />} size="small" sx={{ mb: 1 }}>
-                              Chọn file
-                            </Button>
-                          </label>
-                          {selectedFiles.length > 0 && (
-                            <Box sx={{ mb: 1 }}>
-                              {selectedFiles.map((f, i) => (
-                                <Typography key={i} variant="body2" color="text.secondary">{f.name} ({f.size})</Typography>
-                              ))}
-                            </Box>
-                          )}
-                          <TextField
-                            label="Mô tả"
-                            value={fileDescription}
-                            onChange={(e) => setFileDescription(e.target.value)}
-                            fullWidth
+                        <TextField
+                          label="Mô tả"
+                          value={fileDescription}
+                          onChange={(e) => setFileDescription(e.target.value)}
+                          fullWidth
+                          size="small"
+                          sx={{ mb: 1 }}
+                        />
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            onClick={() => handleSupervisorUploadFiles(selectedProposal._id)}
+                            variant="contained"
                             size="small"
-                            sx={{ mb: 1 }}
-                          />
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Button
-                              onClick={() => handleSupervisorUploadFiles(selectedProposal._id)}
-                              variant="contained"
-                              size="small"
-                              disabled={uploadingFiles || selectedFiles.length === 0}
-                            >
-                              {uploadingFiles ? 'Đang upload...' : 'Upload'}
-                            </Button>
-                            <Button
-                              onClick={() => { setSelectedFiles([]); setFileDescription(''); }}
-                              variant="outlined"
-                              size="small"
-                            >
-                              Hủy
-                            </Button>
-                          </Box>
+                            disabled={uploadingFiles || selectedFiles.length === 0}
+                          >
+                            {uploadingFiles ? 'Đang upload...' : 'Upload'}
+                          </Button>
+                          <Button
+                            onClick={() => { setSelectedFiles([]); setFileDescription(''); }}
+                            variant="outlined"
+                            size="small"
+                          >
+                            Hủy
+                          </Button>
                         </Box>
-                      )}
-                    </Grid>
+                      </Box>
+                    )}
                   </Grid>
+                </Grid>
               </DialogContent>
               <DialogActions>
                 <Button onClick={() => setSelectedProposal(null)}>Đóng</Button>
@@ -624,9 +627,9 @@ function SupervisorTopics() {
                 getOptionLabel={(option) => `${option.fullName} (${option.username})`}
                 value={lecturers.find(l => l.username === reviewData.secondarySupervisor) || null}
                 onChange={(event, newValue) => {
-                  setReviewData(prev => ({ 
-                    ...prev, 
-                    secondarySupervisor: newValue ? newValue.username : '' 
+                  setReviewData(prev => ({
+                    ...prev,
+                    secondarySupervisor: newValue ? newValue.username : ''
                   }));
                 }}
                 renderInput={(params) => (

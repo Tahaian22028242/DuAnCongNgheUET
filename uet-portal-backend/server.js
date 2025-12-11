@@ -41,9 +41,9 @@ const userSchema = new mongoose.Schema({
   userInfo: {
     fullName: String,
     email: String,
-    faculty: String,
-    department: String,
-    position: String
+    faculty: String, // khoa
+    department: String, // bộ môn/phòng thí ng nghiệm
+    position: String // chức vụ
   },
   // Thông tin riêng cho sinh viên
   studentInfo: {
@@ -108,6 +108,7 @@ const topicProposalSchema = new mongoose.Schema({
   headId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Lãnh đạo bộ môn
   headComments: { type: String },
   headReviewedAt: { type: Date },
+  headCommentSavedAt: { type: Date },
   facultyLeaderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Lãnh đạo khoa
   facultyLeaderComments: { type: String },
   facultyLeaderReviewedAt: { type: Date },
@@ -1648,6 +1649,35 @@ app.put('/head/review-topic/:id', authenticateJWT, async (req, res) => {
   }
 });
 
+// API Lãnh đạo bộ môn lưu nhận xét tạm (draft) mà không thay đổi trạng thái
+app.put('/head/save-comment/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (!['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo bộ môn mới có quyền' });
+    }
+
+    const { comments } = req.body;
+    const proposal = await TopicProposal.findById(req.params.id);
+    if (!proposal) return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+
+    // Không cho phép lưu nhận xét nếu đề tài đã ở trạng thái cuối (đã phê duyệt/từ chối)
+    const finalStatuses = ['approved', 'approved_by_head', 'approved_by_faculty_leader', 'rejected', 'rejected_by_head', 'rejected_by_faculty_leader'];
+    if (finalStatuses.includes(proposal.status)) {
+      return res.status(400).json({ message: 'Không thể chỉnh sửa nhận xét khi đề tài đã được phê duyệt/từ chối' });
+    }
+
+    proposal.headComments = comments || '';
+    // Do NOT change status or headReviewedAt here (this is just a draft save)
+    // Record the draft-saved timestamp so frontend can show "Đã lưu nháp lúc"
+    proposal.headCommentSavedAt = new Date();
+    await proposal.save();
+    res.status(200).json({ message: 'Đã lưu nhận xét tạm thời', proposal });
+  } catch (error) {
+    console.error('Error saving head comment:', error);
+    res.status(500).json({ message: 'Lỗi server khi lưu nhận xét', error: error.message });
+  }
+});
+
 // API Lãnh đạo khoa xem các đề tài đang chờ duyệt
 app.get('/faculty-leader/topic-proposals', authenticateJWT, async (req, res) => {
   try {
@@ -1845,18 +1875,32 @@ app.put('/student/resubmit-topic/:proposalId', authenticateJWT, outlineUpload.ar
     proposal.submittedAt = new Date();
 
     // Handle new files
+    let addedFiles = [];
+    let duplicateFiles = [];
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       proposal.outlineFiles = proposal.outlineFiles || [];
-      req.files.forEach(f => {
-        proposal.outlineFiles.push({
-          filename: f.filename,
-          originalName: f.originalname,
-          path: f.path,
-          uploadedBy: 'student',
-          uploadedAt: new Date()
-        });
-      });
-      proposal.outlineStatus = 'pending_review';
+      // Ensure file original names are unique per proposal (case-insensitive)
+      const existingNames = new Set(proposal.outlineFiles.map(f => (f.originalName || f.filename || '').toString().trim().toLowerCase()));
+      for (const f of req.files) {
+        const orig = (f.originalname || f.filename || '').toString().trim();
+        const key = orig.toLowerCase();
+        if (existingNames.has(key)) {
+          try { if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch (e) { console.error('Error removing duplicate uploaded file:', f.path, e.message); }
+          duplicateFiles.push(orig);
+        } else {
+          existingNames.add(key);
+          const entry = {
+            filename: f.filename,
+            originalName: f.originalname,
+            path: f.path,
+            uploadedBy: 'student',
+            uploadedAt: new Date()
+          };
+          proposal.outlineFiles.push(entry);
+          addedFiles.push(entry);
+        }
+      }
+      if (addedFiles.length > 0) proposal.outlineStatus = 'pending_review';
     }
 
     await proposal.save();
@@ -1884,7 +1928,8 @@ app.put('/student/resubmit-topic/:proposalId', authenticateJWT, outlineUpload.ar
 
     res.status(200).json({
       message: 'Cập nhật và gửi lại đề xuất thành công',
-      proposal: { id: proposal._id, topicTitle: proposal.topicTitle, status: proposal.status }
+      proposal: { id: proposal._id, topicTitle: proposal.topicTitle, status: proposal.status },
+      skippedFiles: duplicateFiles || []
     });
   } catch (error) {
     console.error('🚨 /student/resubmit-topic error:', error);
@@ -1945,20 +1990,36 @@ app.post('/student/propose-topic', authenticateJWT, outlineUpload.array('outline
     await proposal.save();
 
     // Nếu có files đính kèm (attachments), lưu metadata vào outlineFiles
+    let addedFiles = [];
+    let duplicateFiles = [];
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       proposal.outlineFiles = proposal.outlineFiles || [];
-      req.files.forEach(f => {
-        proposal.outlineFiles.push({
-          filename: f.filename,
-          originalName: f.originalname,
-          path: f.path,
-          uploadedBy: 'student',
-          uploadedAt: new Date()
-        });
-      });
-      proposal.outlineStatus = 'pending_review';
+      // Ensure file original names are unique per proposal (case-insensitive)
+      const existingNames = new Set(proposal.outlineFiles.map(f => (f.originalName || f.filename || '').toString().trim().toLowerCase()));
+      for (const f of req.files) {
+        const orig = (f.originalname || f.filename || '').toString().trim();
+        const key = orig.toLowerCase();
+        if (existingNames.has(key)) {
+          // remove the stored duplicate file to avoid keeping unnecessary copy
+          try { if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch (e) { console.error('Error removing duplicate uploaded file:', f.path, e.message); }
+          duplicateFiles.push(orig);
+        } else {
+          existingNames.add(key);
+          const entry = {
+            filename: f.filename,
+            originalName: f.originalname,
+            path: f.path,
+            uploadedBy: 'student',
+            uploadedAt: new Date()
+          };
+          proposal.outlineFiles.push(entry);
+          addedFiles.push(entry);
+        }
+      }
+      if (addedFiles.length > 0) proposal.outlineStatus = 'pending_review';
       await proposal.save();
-      console.log(`📎 Saved ${req.files.length} attachment(s) for proposal ${proposal._id}`);
+      console.log(`📎 Saved ${addedFiles.length} attachment(s) for proposal ${proposal._id}`);
+      if (duplicateFiles.length > 0) console.log(`⚠️ Skipped ${duplicateFiles.length} duplicate file(s): ${duplicateFiles.join(', ')}`);
     }
 
     // Gửi thông báo cho cả 2 giảng viên
@@ -1984,7 +2045,8 @@ app.post('/student/propose-topic', authenticateJWT, outlineUpload.array('outline
 
     res.status(201).json({
       message: 'Đề xuất đề tài thành công',
-      proposal: { id: proposal._id, topicTitle: proposal.topicTitle, status: proposal.status }
+      proposal: { id: proposal._id, topicTitle: proposal.topicTitle, status: proposal.status },
+      skippedFiles: duplicateFiles || []
     });
   } catch (error) {
     // Detailed logging for debugging multipart / multer / request issues
@@ -2529,24 +2591,30 @@ app.get('/supervisors', authenticateJWT, async (req, res) => {
   }
 });
 
-// API lấy thông tin cá nhân sinh viên
-app.get('/student/profile', authenticateJWT, async (req, res) => {
+// API lấy thông tin người dùng chung (any authenticated user)
+app.get('/profile', authenticateJWT, async (req, res) => {
   try {
-    if (req.user.role !== 'Sinh viên') {
-      return res.status(403).json({ message: 'Không có quyền truy cập' });
-    }
     const user = await User.findById(req.user._id);
-    if (!user || !user.studentInfo) {
-      return res.status(404).json({ message: 'Không tìm thấy thông tin sinh viên' });
+    if (!user) {
+      return res.status(404).json({ message: 'Không tìm thấy thông tin người dùng' });
     }
+
+    const studentInfo = user.studentInfo || {};
+    const userInfo = user.userInfo || {};
+
     res.json({
-      studentId: user.studentInfo.studentId,
-      fullName: user.studentInfo.fullName,
-      faculty: user.studentInfo.faculty,
-      major: user.studentInfo.major
+      username: user.username,
+      role: user.role,
+      userInfo,
+      studentInfo,
+      studentId: studentInfo.studentId || null,
+      fullName: (studentInfo.fullName || userInfo.fullName || user.username),
+      faculty: (studentInfo.faculty || userInfo.faculty || ''),
+      major: (studentInfo.major || userInfo.major || '')
     });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server khi lấy thông tin sinh viên' });
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy thông tin người dùng' });
   }
 });
 
@@ -3190,31 +3258,68 @@ app.post('/supervisor/manage-outline/:proposalId', authenticateJWT, outlineUploa
       return res.status(400).json({ message: 'Đề cương đã được phê duyệt, không thể chỉnh sửa' });
     }
 
-    // Xóa file nếu có
+    // Xóa file nếu có (và xóa file vật lý trên đĩa)
+    const deletedFiles = [];
     if (deleteFiles) {
       const filesToDelete = JSON.parse(deleteFiles);
-      proposal.outlineFiles = proposal.outlineFiles.filter(f => !filesToDelete.includes(f.filename));
+      for (const filename of filesToDelete) {
+        const idx = proposal.outlineFiles.findIndex(f => f.filename === filename);
+        if (idx !== -1) {
+          const fileEntry = proposal.outlineFiles[idx];
+          try { if (fileEntry.path && fs.existsSync(fileEntry.path)) fs.unlinkSync(fileEntry.path); } catch (e) { console.error('Error deleting file from disk:', fileEntry.path, e.message); }
+          proposal.outlineFiles.splice(idx, 1);
+          deletedFiles.push(filename);
+        }
+      }
+      // If no files remain, set status back to not_uploaded
+      if (!proposal.outlineFiles || proposal.outlineFiles.length === 0) {
+        proposal.outlineStatus = 'not_uploaded';
+      }
     }
 
-    // Thêm file mới
+    // Thêm file mới (và đảm bảo tên file gốc là duy nhất trong đề tài)
+    let addedFiles = [];
+    let duplicateFiles = [];
     if (files && files.length > 0) {
-      const newFiles = files.map(file => ({
-        filename: file.filename,
-        originalName: file.originalname,
-        path: file.path,
-        uploadedBy: 'supervisor',
-        uploadedAt: new Date(),
-        description: description || ''
-      }));
       proposal.outlineFiles = proposal.outlineFiles || [];
-      proposal.outlineFiles.push(...newFiles);
+      const existingNames = new Set(proposal.outlineFiles.map(f => (f.originalName || f.filename || '').toString().trim().toLowerCase()));
+      addedFiles = [];
+      duplicateFiles = [];
+      for (const file of files) {
+        const orig = (file.originalname || file.filename || '').toString().trim();
+        const key = orig.toLowerCase();
+        if (existingNames.has(key)) {
+          // remove stored duplicate file
+          try { if (file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch (e) { console.error('Error removing duplicate uploaded file:', file.path, e.message); }
+          duplicateFiles.push(orig);
+        } else {
+          existingNames.add(key);
+          const entry = {
+            filename: file.filename,
+            originalName: file.originalname,
+            path: file.path,
+            uploadedBy: 'supervisor',
+            uploadedAt: new Date(),
+            description: description || ''
+          };
+          proposal.outlineFiles.push(entry);
+          addedFiles.push(entry);
+        }
+      }
+      if (addedFiles.length > 0) {
+        proposal.outlineStatus = 'pending_review';
+      }
+      if (duplicateFiles.length > 0) console.log(`⚠️ Skipped ${duplicateFiles.length} duplicate file(s) from supervisor upload: ${duplicateFiles.join(', ')}`);
     }
 
     await proposal.save();
 
     res.json({ 
       message: 'Cập nhật file đề cương thành công',
-      outlineFiles: proposal.outlineFiles
+      outlineFiles: proposal.outlineFiles,
+      addedFiles,
+      skippedFiles: duplicateFiles || [],
+      deletedFiles
     });
 
   } catch (error) {
@@ -3331,8 +3436,8 @@ app.get('/view-outline/:proposalId/:filename', authenticateJWT, async (req, res)
     const isStudent = req.user.role === 'Sinh viên' && student?.studentInfo?.studentId === proposal.studentId;
     const isPrimarySupervisor = ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role) && req.user.username === proposal.primarySupervisor;
     const isSecondarySupervisor = ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role) && req.user.username === proposal.secondarySupervisor;
-    const isHead = req.user.role === 'Lãnh đạo bộ môn' && proposal.outlineStatus === 'approved';
-    const isFacultyLeader = req.user.role === 'Lãnh đạo khoa' && proposal.outlineStatus === 'approved';
+    const isHead = req.user.role === 'Lãnh đạo bộ môn' /*&& proposal.outlineStatus === 'approved'*/;
+    const isFacultyLeader = req.user.role === 'Lãnh đạo khoa' /*&& proposal.outlineStatus === 'approved'*/;
 
     if (!isStudent && !isPrimarySupervisor && !isSecondarySupervisor && !isHead && !isFacultyLeader) {
       return res.status(403).json({ message: 'Bạn không có quyền xem file này' });
@@ -3374,8 +3479,8 @@ app.get('/download-outline/:proposalId/:filename', authenticateJWT, async (req, 
     const isSecondarySupervisor = ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role) && req.user.username === proposal.secondarySupervisor;
     
     // LĐBM và Lãnh đạo khoa chỉ được xem khi outline đã được GVHD phê duyệt
-    const isHead = req.user.role === 'Lãnh đạo bộ môn' && proposal.outlineStatus === 'approved';
-    const isFacultyLeader = req.user.role === 'Lãnh đạo khoa' && proposal.outlineStatus === 'approved';
+    const isHead = req.user.role === 'Lãnh đạo bộ môn' /*&& proposal.outlineStatus === 'approved'*/;
+    const isFacultyLeader = req.user.role === 'Lãnh đạo khoa' /*&& proposal.outlineStatus === 'approved'*/;
 
     if (!isStudent && !isPrimarySupervisor && !isSecondarySupervisor && !isHead && !isFacultyLeader) {
       return res.status(403).json({ message: 'Bạn không có quyền tải file này' });
