@@ -300,10 +300,12 @@ function FacultiesInfo() {
                 )}
               </Paper>
             )}
-            <Button onClick={() => navigate('/upload-lecturers')} sx={{ cursor: 'pointer', py: 0.5, width: '100%' }}>
-              <UploadFileIcon sx={{ mr: 1, justifyContent: 'center' }} />
-              Tải lên danh sách giảng viên mới
-            </Button>
+            {user.role === 'Quản trị viên' && (
+              <Button onClick={() => navigate('/upload-lecturers')} sx={{ cursor: 'pointer', py: 0.5, width: '100%' }}>
+                <UploadFileIcon sx={{ mr: 1, justifyContent: 'center' }} />
+                Tải lên danh sách giảng viên mới
+              </Button>
+            )}
             {/* Delete faculty confirmation dialog */}
             <Dialog open={deleteFacultyDialogOpen} onClose={() => setDeleteFacultyDialogOpen(false)}>
               <DialogTitle>Xóa dữ liệu theo Khoa</DialogTitle>

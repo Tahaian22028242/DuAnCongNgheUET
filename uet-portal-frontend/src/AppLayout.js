@@ -225,10 +225,6 @@ const AppLayout = ({ children }) => {
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
                             </ListItem>
-                            <ListItem button onClick={() => navigate('/topic-proposals')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề tài chưa được phê duyệt" />}
-                            </ListItem>
                         </>
                     )}
                     {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (

@@ -19,6 +19,9 @@ function HeadTopics() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [comments, setComments] = useState('');
   const [proposals, setProposals] = useState([]);
+  const [archiveProposals, setArchiveProposals] = useState([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedProposal, setSelectedProposal] = useState(null);
@@ -45,7 +48,24 @@ function HeadTopics() {
 
   useEffect(() => {
     fetchProposals();
+    fetchArchiveProposals();
   }, []);
+
+  const fetchArchiveProposals = async () => {
+    setArchiveLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/head/topic-proposals-archive', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setArchiveProposals(data);
+      }
+    } catch (error) {
+      console.error('Could not load archive proposals:', error);
+    }
+    setArchiveLoading(false);
+  };
 
   useEffect(() => {
     // fetch list of lecturers for secondary supervisor autocomplete (optional)
@@ -115,11 +135,14 @@ function HeadTopics() {
         comments: (headComments || '').trim()
       }, { withCredentials: true });
       setMessage({ type: 'success', text: res.data?.message || 'Đã lưu nhận xét.' });
-      // refresh proposals to get updated comment
-      fetchProposals();
-      // refresh selected proposal from server so UI shows latest
-      const refreshed = await axios.get(`http://localhost:5000/head/topic-proposals`, { withCredentials: true });
-      const found = (refreshed.data || []).find(p => p._id === selectedProposal._id);
+      // refresh both lists to get updated comment
+      await fetchProposals();
+      await fetchArchiveProposals();
+      // refresh selected proposal from server (search in both lists)
+      const refreshedPending = await axios.get(`http://localhost:5000/head/topic-proposals`, { withCredentials: true });
+      const refreshedArchive = await axios.get(`http://localhost:5000/head/topic-proposals-archive`, { withCredentials: true });
+      const combined = [...(refreshedPending.data || []), ...(refreshedArchive.data || [])];
+      const found = combined.find(p => p._id === selectedProposal._id);
       if (found) setSelectedProposal(found);
     } catch (err) {
       console.error('Error saving head comments:', err);
@@ -144,6 +167,7 @@ function HeadTopics() {
       setReviewDialog(false);
       setSelectedProposal(null);
       fetchProposals();
+      fetchArchiveProposals();
     } catch (err) {
       console.error('Error submitting head review:', err);
       setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi gửi đánh giá' });
@@ -248,15 +272,38 @@ function HeadTopics() {
     }
   };
 
+  const list = showArchive ? archiveProposals : proposals;
+  const isLoading = showArchive ? archiveLoading : loading;
+  const titleText = showArchive ? 'Lưu trữ đề tài (Lãnh đạo bộ môn)' : 'Đề tài chờ phê duyệt (Lãnh đạo bộ môn)';
+
   return (
     <>
       <AppLayout>
         <div className="dashboard">
           <div className="dashboard-content">
             <Box sx={{ p: 3 }}>
-              <Typography variant="h5" gutterBottom>
-                Đề tài chờ phê duyệt (Lãnh đạo bộ môn)
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h5">
+                  {titleText}
+                </Typography>
+                <Box>
+                  <Button
+                    variant={showArchive ? 'outlined' : 'contained'}
+                    size="small"
+                    onClick={() => setShowArchive(false)}
+                    sx={{ mr: 1 }}
+                  >
+                    Chờ phê duyệt
+                  </Button>
+                  <Button
+                    variant={showArchive ? 'contained' : 'outlined'}
+                    size="small"
+                    onClick={() => setShowArchive(true)}
+                  >
+                    Lưu trữ
+                  </Button>
+                </Box>
+              </Box>
 
               {message.text && (
                 <Alert severity={message.type} sx={{ mb: 2 }} onClose={() => setMessage({ type: '', text: '' })}>
@@ -264,16 +311,16 @@ function HeadTopics() {
                 </Alert>
               )}
 
-              {loading ? (
+              {isLoading ? (
                 <Typography>Đang tải...</Typography>
-              ) : proposals.length === 0 ? (
+              ) : list.length === 0 ? (
                 <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography>Không có đề tài nào chờ phê duyệt.</Typography>
+                  <Typography>Không có đề tài nào.</Typography>
                 </Paper>
               ) : (
                 <>
                   <Typography variant="subtitle1" sx={{ mb: 2, color: 'text.secondary' }}>
-                    Tổng cộng: {proposals.length} đề xuất
+                    Tổng cộng: {list.length} đề xuất
                   </Typography>
 
                   <TableContainer component={Paper}>
@@ -291,7 +338,7 @@ function HeadTopics() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {proposals.map((proposal, index) => (
+                        {list.map((proposal, index) => (
                           <TableRow key={proposal._id} hover>
                             <TableCell>{index + 1}</TableCell>
                             <TableCell>

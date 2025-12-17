@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 
 function FacultyLeaderTopics() {
@@ -15,6 +16,9 @@ function FacultyLeaderTopics() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
   const [proposals, setProposals] = useState([]);
+  const [archiveProposals, setArchiveProposals] = useState([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [selected, setSelected] = useState(null);
   const [open, setOpen] = useState(false);
   const [reviewDialog, setReviewDialog] = useState(false);
@@ -23,7 +27,24 @@ function FacultyLeaderTopics() {
 
   useEffect(() => {
     load();
+    fetchArchiveProposals();
   }, []);
+
+  const fetchArchiveProposals = async () => {
+    setArchiveLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/faculty-leader/topic-proposals-archive', { credentials: 'include' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Không thể tải danh sách lưu trữ');
+      }
+      const data = await res.json();
+      setArchiveProposals(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('Could not load faculty leader archive:', e);
+    }
+    setArchiveLoading(false);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -63,6 +84,9 @@ function FacultyLeaderTopics() {
         setSelected(null);
         setComments('');
         load();
+        await fetchArchiveProposals();
+        // switch to archive view so the approved/rejected proposal remains visible
+        setShowArchive(true);
       } else {
         setMessage({ type: 'error', text: data.message });
       }
@@ -70,6 +94,29 @@ function FacultyLeaderTopics() {
       setMessage({ type: 'error', text: 'Lỗi kết nối server' });
     }
     setSubmitting(false);
+  };
+
+  const handleDeleteFile = async (filename) => {
+    if (!selected) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa file này khỏi lưu trữ?')) return;
+    try {
+      await axios.delete(`http://localhost:5000/delete-outline/${selected._id}/${filename}`, { withCredentials: true });
+      setMessage({ type: 'success', text: 'Đã xóa file.' });
+      // refresh archive and selected proposal
+      await fetchArchiveProposals();
+      const refreshed = archiveProposals.filter(p => p._id === selected._id);
+      if (refreshed && refreshed.length > 0) {
+        const updated = refreshed[0];
+        updated.outlineFiles = (updated.outlineFiles || []).filter(f => f.filename !== filename);
+        setSelected(updated);
+      } else {
+        // try reload selected from pending list
+        await load();
+      }
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi xóa file' });
+    }
   };
 
   const getStatusText = (status) => {
@@ -88,9 +135,13 @@ function FacultyLeaderTopics() {
     <AppLayout>
       <div className="dashboard-content">
         <Box sx={{ p: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            Quản lý đề cương (Lãnh đạo khoa)
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h5">{showArchive ? 'Lưu trữ đề cương (Lãnh đạo khoa)' : 'Quản lý đề cương (Lãnh đạo khoa)'}</Typography>
+            <Box>
+              <Button variant={showArchive ? 'outlined' : 'contained'} size="small" onClick={() => setShowArchive(false)} sx={{ mr: 1 }}>Chờ phê duyệt</Button>
+              <Button variant={showArchive ? 'contained' : 'outlined'} size="small" onClick={() => setShowArchive(true)}>Lưu trữ</Button>
+            </Box>
+          </Box>
           
           {message.text && (
             <Alert severity={message.type} sx={{ mb: 2 }} onClose={() => setMessage({ type: '', text: '' })}>
@@ -100,10 +151,10 @@ function FacultyLeaderTopics() {
           
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           
-          {loading ? (
+          { (showArchive ? archiveLoading : loading) ? (
             <CircularProgress />
-          ) : proposals.length === 0 ? (
-            <Paper sx={{ p: 2, textAlign: 'center' }}>Chưa có đề cương chờ phê duyệt.</Paper>
+          ) : (showArchive ? archiveProposals.length === 0 : proposals.length === 0) ? (
+            <Paper sx={{ p: 2, textAlign: 'center' }}>Chưa có đề cương.</Paper>
           ) : (
             <TableContainer component={Paper}>
               <Table>
@@ -122,7 +173,7 @@ function FacultyLeaderTopics() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {proposals.map((p, idx) => (
+                  {(showArchive ? archiveProposals : proposals).map((p, idx) => (
                     <TableRow key={p._id}>
                       <TableCell>{idx + 1}</TableCell>
                       <TableCell>{p.topicTitle}</TableCell>
@@ -142,14 +193,16 @@ function FacultyLeaderTopics() {
                         >
                           Xem
                         </Button>
-                        <Button 
-                          size="small" 
-                          variant="contained" 
-                          color="primary"
-                          onClick={() => { setSelected(p); setReviewDialog(true); setComments(''); }}
-                        >
-                          Duyệt
-                        </Button>
+                        {!showArchive && (
+                          <Button 
+                            size="small" 
+                            variant="contained" 
+                            color="primary"
+                            onClick={() => { setSelected(p); setReviewDialog(true); setComments(''); }}
+                          >
+                            Duyệt
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -234,6 +287,18 @@ function FacultyLeaderTopics() {
                                 <DownloadIcon />
                               </IconButton>
                             </Tooltip>
+                            {showArchive && (
+                              <Tooltip title="Xóa">
+                                <IconButton
+                                  edge="end"
+                                  onClick={() => handleDeleteFile(file.filename)}
+                                  color="error"
+                                  sx={{ ml: 1 }}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                           </ListItemSecondaryAction>
                         </ListItem>
                       ))}

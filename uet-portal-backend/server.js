@@ -2970,6 +2970,26 @@ app.get('/head/students-statistics', authenticateJWT, async (req, res) => {
   }
 });
 
+// API: danh sách giảng viên (dùng cho autocomplete/selection)
+app.get('/lecturers', authenticateJWT, async (req, res) => {
+  try {
+    // Allow admin and staff roles to fetch, but keep it open to authenticated users for convenience
+    const lecturers = await User.find({ role: { $in: ['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'] } }).select('username userInfo.fullName userInfo.email userInfo.faculty managedDepartment managedMajor');
+    const mapped = lecturers.map(l => ({
+      username: l.username,
+      fullName: l.userInfo?.fullName || l.username,
+      email: l.userInfo?.email || l.username,
+      faculty: l.userInfo?.faculty || null,
+      managedDepartment: l.managedDepartment || null,
+      managedMajor: l.managedMajor || null
+    }));
+    res.status(200).json(mapped);
+  } catch (error) {
+    console.error('Error fetching lecturers list:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách giảng viên', error: error.message });
+  }
+});
+
 // API mới: Lấy danh sách tất cả bộ môn/phòng thí nghiệm theo khoa
 app.get('/departments/by-faculty/:facultyName', authenticateJWT, async (req, res) => {
   try {
