@@ -112,6 +112,7 @@ const topicProposalSchema = new mongoose.Schema({
   facultyLeaderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Lãnh đạo khoa
   facultyLeaderComments: { type: String },
   facultyLeaderReviewedAt: { type: Date },
+  facultyLeaderCommentSavedAt: { type: Date },
   // File đề cương
   outlineFiles: [{
     filename: String,
@@ -1674,6 +1675,35 @@ app.put('/head/save-comment/:id', authenticateJWT, async (req, res) => {
     res.status(200).json({ message: 'Đã lưu nhận xét tạm thời', proposal });
   } catch (error) {
     console.error('Error saving head comment:', error);
+    res.status(500).json({ message: 'Lỗi server khi lưu nhận xét', error: error.message });
+  }
+});
+
+// API Lãnh đạo khoa lưu nhận xét tạm (draft) mà không thay đổi trạng thái
+app.put('/faculty-leader/save-comment/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Lãnh đạo khoa') {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo khoa mới có quyền' });
+    }
+
+    const { comments } = req.body;
+    const proposal = await TopicProposal.findById(req.params.id);
+    if (!proposal) return res.status(404).json({ message: 'Không tìm thấy đề tài' });
+
+    // Không cho phép lưu nhận xét nếu đề tài đã ở trạng thái cuối (đã phê duyệt/từ chối)
+    const finalStatuses = ['approved', 'approved_by_head', 'approved_by_faculty_leader', 'rejected', 'rejected_by_head', 'rejected_by_faculty_leader'];
+    if (finalStatuses.includes(proposal.status)) {
+      return res.status(400).json({ message: 'Không thể chỉnh sửa nhận xét khi đề tài đã được phê duyệt/từ chối' });
+    }
+
+    proposal.facultyLeaderComments = comments || '';
+    // Do NOT change status or facultyLeaderReviewedAt here (this is just a draft save)
+    // Record the draft-saved timestamp so frontend can show "Đã lưu nháp lúc"
+    proposal.facultyLeaderCommentSavedAt = new Date();
+    await proposal.save();
+    res.status(200).json({ message: 'Đã lưu nhận xét tạm thời', proposal });
+  } catch (error) {
+    console.error('Error saving faculty leader comment:', error);
     res.status(500).json({ message: 'Lỗi server khi lưu nhận xét', error: error.message });
   }
 });
@@ -3575,8 +3605,82 @@ app.delete('/delete-outline/:proposalId/:filename', authenticateJWT, async (req,
 // ==================== END OUTLINE FILE UPLOAD APIs ====================
 
 // Start server
+// API cập nhật profile (username và/hoặc mật khẩu)
+app.post('/update-profile', authenticateJWT, async (req, res) => {
+  try {
+    const { username, oldPassword, newPassword } = req.body || {};
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'Người dùng không tồn tại' });
+
+    let changed = false;
+
+    // Update username if provided and different
+    if (username && username !== user.username) {
+      const existing = await User.findOne({ username });
+      if (existing) {
+        return res.status(400).json({ message: 'Tên đăng nhập đã tồn tại' });
+      }
+      user.username = username;
+      changed = true;
+    }
+
+    // Update password if requested
+    if (newPassword) {
+      // If new password equals current password, reject
+      const isSame = await bcrypt.compare(newPassword, user.password);
+      if (isSame) {
+        return res.status(400).json({ message: 'Mật khẩu này đang được sử dụng' });
+      }
+      const hashed = await bcrypt.hash(newPassword, 10);
+      user.password = hashed;
+      changed = true;
+    }
+
+    if (!changed) {
+      return res.status(400).json({ message: 'Không có thay đổi nào để lưu' });
+    }
+
+    await user.save();
+
+    // Re-issue auth token so client cookie contains updated username payload
+    const newToken = await issueAuthToken(user);
+    issueAuthTokenCookie(res, newToken);
+
+    // Normalize role label if necessary
+    const normalizedRole = user.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : user.role;
+
+    res.json({ message: 'Cập nhật thông tin thành công', user: { username: user.username, role: normalizedRole } });
+  } catch (error) {
+    console.error('Error update-profile:', error);
+    res.status(500).json({ message: 'Lỗi server khi cập nhật profile', error: error.message });
+  }
+});
+
+// Start server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
+});
+// API: Đánh dấu thông báo là đã đọc (có thể mark tất cả hoặc theo id)
+app.post('/notifications/mark-read', authenticateJWT, async (req, res) => {
+  try {
+    const { notificationId } = req.body || {};
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'Người dùng không tồn tại' });
+
+    if (notificationId) {
+      user.notifications = (user.notifications || []).map(n => n._id.toString() === notificationId ? { ...n.toObject(), read: true } : n);
+    } else {
+      user.notifications = (user.notifications || []).map(n => ({ ...n.toObject(), read: true }));
+    }
+
+    await user.save();
+
+    res.json({ message: 'Đã đánh dấu thông báo là đã đọc', notifications: user.notifications });
+  } catch (error) {
+    console.error('Error mark-read notifications:', error);
+    res.status(500).json({ message: 'Lỗi server khi đánh dấu thông báo', error: error.message });
+  }
 });
 
 

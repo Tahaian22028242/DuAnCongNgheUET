@@ -253,7 +253,7 @@ function FacultiesInfo() {
         <div className="dashboard-content">
           <Box sx={{ p: 3 }}>
             <Typography variant="h4" gutterBottom>
-              Chọn khoa để xem danh sách giảng viên & CNBM
+              Chọn khoa để xem danh sách Giảng viên & CNBM
             </Typography>
 
             {loading ? (

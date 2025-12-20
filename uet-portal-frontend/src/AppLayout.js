@@ -107,7 +107,7 @@ const AppLayout = ({ children }) => {
                         boxSizing: 'border-box',
                         overflowX: 'hidden',
                         transition: 'width 0.2s',
-                         bgcolor: '#2e7d32',
+                        bgcolor: '#2e7d32',
                         color: 'white',
                     },
                 }}
@@ -197,15 +197,8 @@ const AppLayout = ({ children }) => {
                             <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 {/* <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin giảng viên" />} */}
-                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
-                            </ListItem>
-                            {/* <ListItem button onClick={() => navigate('/notifications')}>
-                                <InfoIcon sx={{ mr: 1 }} />
-                                <ListItemText primary="Thông báo" /> */}
-                                 <ListItem button onClick={() => navigate('/notifications')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông báo" />}
                             </ListItem>
                         </>
                     )}
@@ -263,15 +256,7 @@ const AppLayout = ({ children }) => {
                             {/* Menu Lãnh đạo khoa */}
                             <ListItem button onClick={() => navigate('/faculty-leader/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt (LĐK)" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Lưu trữ đề cương" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/faculty-leader/management')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Quản lý đề cương" />}
+                                {drawerOpen && <ListItemText primary="Quản lý đề cương (LĐK)" />}
                             </ListItem>
                             <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
@@ -279,30 +264,21 @@ const AppLayout = ({ children }) => {
                             </ListItem>
                         </>
                     )}
+                    <ListItem button onClick={() => navigate('/notifications')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                        <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                        {drawerOpen && <ListItemText primary="Thông báo" />}
+                    </ListItem>
                     <ListItem button onClick={() => navigate('/calendar')} sx={{ cursor: 'pointer', py: 0.5 }}>
                         <CalendarMonthIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Lịch" />}
                     </ListItem>
                     <ListItem button onClick={() => navigate('/settings')} sx={{ cursor: 'pointer', py: 0.5 }}>
                         <SettingsIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                        {/* {drawerOpen && <ListItemText primary="Setting" />}
-                    </ListItem>
-                    <ListItem button onClick={() => navigate('/help')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                        <HelpIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                        {drawerOpen && <ListItemText primary="Help" />}
-                    </ListItem>
-                    <ListItem button onClick={() => navigate('/about')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                        <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                        {drawerOpen && <ListItemText primary="Introduction" />}
-                    </ListItem>
-                    <ListItem button onClick={() => navigate('/contact')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                        <ContactMailIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                        {drawerOpen && <ListItemText primary="Contact" />} */}
                         {drawerOpen && <ListItemText primary="Cài đặt" />}
                     </ListItem>
                     <ListItem button onClick={handleLogout} sx={{ cursor: 'pointer', py: 0.5 }}>
                         <ExitToAppIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                        {drawerOpen && <ListItemText primary="Logout" />}
+                        {drawerOpen && <ListItemText primary="Đăng xuất" />}
                     </ListItem>
                 </List>
             </Drawer>

@@ -1,31 +1,72 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import AppLayout from './AppLayout';
 import { Typography, Paper, Box } from '@mui/material';
 import './Dashboard.css';
 
 function Dashboard() {
   const user = JSON.parse(localStorage.getItem('user')) || {};
+  const [latestNotification, setLatestNotification] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    // fetch notifications (student endpoint returns an array)
+    fetch('http://localhost:5000/student/notifications', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        const items = Array.isArray(data) ? data : [];
+        const count = items.filter(n => !n.read).length;
+        setUnreadCount(count);
+        if (items.length === 0) {
+          setLatestNotification(null);
+          return;
+        }
+        // pick the most recent by createdAt
+        const latest = items.reduce((acc, cur) => {
+          const accTime = acc?.createdAt ? new Date(acc.createdAt).getTime() : 0;
+          const curTime = cur?.createdAt ? new Date(cur.createdAt).getTime() : 0;
+          return curTime > accTime ? cur : acc;
+        }, items[0]);
+        setLatestNotification(latest);
+      }).catch(() => { });
+  }, []);
   return (
     <AppLayout>
       <div className="dashboard-content">
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h4" gutterBottom>
-            Xin chào {user.fullName || user.userInfo?.fullName || user.studentInfo?.fullName || user.username || 'Khách'}
+            Xin chào {user.userInfo?.fullName || user.studentInfo?.fullName || user.fullName || user.username || 'Khách'}
           </Typography>
           <Typography variant="subtitle1">
-            Role: {user.role || 'Không xác định'}
+            Vai trò: <strong>{user.role || 'Không xác định'}</strong>
           </Typography>
         </Paper>
         <Box sx={{ mb: 3 }}>
           <Typography variant="h5" gutterBottom>
-            Chào mừng bạn đến với hệ thống quản lý học viên
+            Chào mừng bạn đến với Hệ thống quản lý học viên UET Portal!
           </Typography>
+          {unreadCount === 0 ? (
+            <Typography variant="body1" color="primary" sx={{ mt: 1 , mb: 1 }}>
+              <strong>Bạn không có thông báo nào chưa xem, nhưng hãy kiểm tra thường xuyên nhé!</strong>
+            </Typography>
+          ) : (
+            <Typography variant="body1" color="primary" sx={{ mt: 1 , mb: 1 }}>
+              Bạn có {unreadCount} thông báo mới. Hãy kiểm tra ngay!
+            </Typography>
+          )}
           <Typography variant="body1">
-            Thông báo mới nhất:
+            <strong>Thông báo mới nhất:</strong>
           </Typography>
+          {latestNotification ? (
+            <Paper sx={{ p: 2, mt: 1 }}>
+              <Typography variant="subtitle1">{latestNotification.message}</Typography>
+              <Typography variant="caption" color="text.secondary">{new Date(latestNotification.createdAt).toLocaleString('vi-VN')}</Typography>
+            </Paper>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Chưa có thông báo.</Typography>
+          )}
         </Box>
 
-        {user.role === 'Quản trị viên' && (
+        {/* {user.role === 'Quản trị viên' && (
           <Paper sx={{ p: 3, mb: 3, bgcolor: '#f5f8ff' }}>
             <Typography variant="h6" gutterBottom>
               (Note sau xóa:) Chức năng quản trị viên
@@ -68,7 +109,7 @@ function Dashboard() {
               Bạn có thể xem mã học viên, họ tên và ngành học của mình
             </Typography>
           </Paper>
-        )}
+        )} */}
       </div>
     </AppLayout>
   );
