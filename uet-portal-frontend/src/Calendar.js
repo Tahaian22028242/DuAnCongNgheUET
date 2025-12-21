@@ -105,13 +105,15 @@ const Calendar = () => {
   const loadEvents = async () => {
     try {
       setLoading(true);
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      const params = new URLSearchParams();
       
-      const params = new URLSearchParams({
-        startDate: startOfMonth.toISOString(),
-        endDate: endOfMonth.toISOString()
-      });
+      // Only add date filters for month view
+      if (view === 'month') {
+        const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        params.append('startDate', startOfMonth.toISOString());
+        params.append('endDate', endOfMonth.toISOString());
+      }
 
       const response = await fetch(`http://localhost:5000/calendar/events?${params}`, {
         credentials: 'include'
@@ -380,13 +382,12 @@ const Calendar = () => {
   };
 
   const renderListView = () => {
-    const upcomingEvents = filteredEvents
-      .filter(event => new Date(event.startDate) >= new Date())
-      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    const allEvents = filteredEvents
+      .sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
 
     return (
       <Box>
-        {upcomingEvents.map(event => {
+        {allEvents.map(event => {
           const typeInfo = getEventTypeInfo(event.eventType);
           const TypeIcon = typeInfo.icon;
           
@@ -421,7 +422,7 @@ const Calendar = () => {
                       />
                     </Box>
                   </Box>
-                  {(event.createdBy._id === user?._id || user?.role === 'Quản trị viên') && (
+                  {(event.createdBy.username === user?.username || user?.role === 'Quản trị viên') && (
                     <IconButton
                       onClick={(e) => {
                         setSelectedEvent(event);
@@ -436,9 +437,9 @@ const Calendar = () => {
             </Card>
           );
         })}
-        {upcomingEvents.length === 0 && (
+        {allEvents.length === 0 && (
           <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mt: 4 }}>
-            Không có sự kiện nào sắp tới
+            Không có sự kiện nào
           </Typography>
         )}
       </Box>
@@ -453,7 +454,7 @@ const Calendar = () => {
           <Typography variant="h4">Lịch</Typography>
           <Box display="flex" gap={2} alignItems="center">
             {/* Filters */}
-            <FormControl size="small" sx={{ minWidth: 120 }}>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
               <InputLabel>Loại sự kiện</InputLabel>
               <Select
                 value={filters.eventType}
@@ -497,17 +498,17 @@ const Calendar = () => {
               {view === 'month' && 
                 `Tháng ${currentDate.getMonth() + 1} năm ${currentDate.getFullYear()}`
               }
-              {view === 'list' && 'Sự kiện sắp tới'}
+              {view === 'list' && 'Tất cả sự kiện'}
             </Typography>
             <IconButton onClick={() => navigateDate(1)} disabled={view === 'list'}>
               <ChevronRight />
             </IconButton>
-            <Button 
+            {/* <Button 
               variant="outlined" 
               onClick={() => setCurrentDate(new Date())}
             >
               Hôm nay
-            </Button>
+            </Button> */}
           </Box>
         </Box>
 

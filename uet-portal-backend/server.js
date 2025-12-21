@@ -263,6 +263,7 @@ app.post('/login', async (req, res) => {
     let responseData = {
       message: 'Đăng nhập thành công',
       user: {
+        _id: user._id,
         username: user.username,
         role: normalizedRole,
       }
@@ -270,7 +271,7 @@ app.post('/login', async (req, res) => {
 
     if (normalizedRole === 'Sinh viên') {
       responseData.user.studentInfo = user.studentInfo || null;
-    } else if (normalizedRole === 'Lãnh đạo bộ môn') {
+    } else if (normalizedRole === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') {
       responseData.user.userInfo = user.userInfo || null;
       responseData.user.managedDepartment = user.managedDepartment || null;
     } else if (normalizedRole === 'Lãnh đạo khoa') {
@@ -561,11 +562,14 @@ app.get('/students/batches', authenticateJWT, async (req, res) => {
     let allowedToView = false;
     let majorFilter = null;
 
+    // Normalize role
+    const normalizedRole = req.user.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : req.user.role;
+
     // Kiểm tra quyền truy cập - Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa
-    if (['Quản trị viên', 'Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role)) {
+    if (['Quản trị viên', 'Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(normalizedRole)) {
       allowedToView = true;
       // LĐBM chỉ được xem sinh viên thuộc ngành mình quản lý
-      if (req.user.role === 'Lãnh đạo bộ môn') {
+      if (normalizedRole === 'Lãnh đạo bộ môn') {
         const head = await User.findById(req.user._id);
         majorFilter = head.managedMajor;
       }
@@ -1563,6 +1567,73 @@ app.put('/supervisor/hide-archive/:id', authenticateJWT, async (req, res) => {
   }
 });
 
+// API Lãnh đạo bộ môn ẩn đề tài khỏi archive
+app.put('/head/hide-archive/:id', authenticateJWT, async (req, res) => {
+  try {
+    const normalizedRole = req.user.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : req.user.role;
+    if (normalizedRole !== 'Lãnh đạo bộ môn') {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo bộ môn mới có quyền thực hiện' });
+    }
+
+    const proposal = await TopicProposal.findById(req.params.id);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề xuất' });
+    }
+
+    // Thêm username vào danh sách hiddenFrom nếu chưa có
+    if (!proposal.hiddenFrom) {
+      proposal.hiddenFrom = [];
+    }
+    if (!proposal.hiddenFrom.includes(req.user.username)) {
+      proposal.hiddenFrom.push(req.user.username);
+    }
+
+    await proposal.save();
+
+    res.status(200).json({ 
+      message: 'Đã ẩn đề tài khỏi danh sách lưu trữ',
+      proposal 
+    });
+
+  } catch (error) {
+    console.error('Error hiding proposal from archive (head):', error);
+    res.status(500).json({ message: 'Lỗi server khi ẩn đề tài', error: error.message });
+  }
+});
+
+// API Lãnh đạo khoa ẩn đề tài khỏi archive
+app.put('/faculty-leader/hide-archive/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'Lãnh đạo khoa') {
+      return res.status(403).json({ message: 'Chỉ Lãnh đạo khoa mới có quyền thực hiện' });
+    }
+
+    const proposal = await TopicProposal.findById(req.params.id);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề xuất' });
+    }
+
+    // Thêm username vào danh sách hiddenFrom nếu chưa có
+    if (!proposal.hiddenFrom) {
+      proposal.hiddenFrom = [];
+    }
+    if (!proposal.hiddenFrom.includes(req.user.username)) {
+      proposal.hiddenFrom.push(req.user.username);
+    }
+
+    await proposal.save();
+
+    res.status(200).json({ 
+      message: 'Đã ẩn đề tài khỏi danh sách lưu trữ',
+      proposal 
+    });
+
+  } catch (error) {
+    console.error('Error hiding proposal from archive (faculty leader):', error);
+    res.status(500).json({ message: 'Lỗi server khi ẩn đề tài', error: error.message });
+  }
+});
+
 // API Lãnh đạo bộ môn xem các đề tài chờ duyệt
 app.get('/head/topic-proposals', authenticateJWT, async (req, res) => {
   try {
@@ -2166,7 +2237,7 @@ const eventSchema = new mongoose.Schema({
   isAllDay: { type: Boolean, default: false },
   location: { type: String },
   visibility: { type: String, enum: ['public', 'major_only', 'role_only', 'private'], default: 'public' },
-  targetRoles: [{ type: String, enum: ['Sinh viên', 'Giảng viên', 'Quản trị viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa', 'Chủ nhiệm bộ môn'] }],
+  targetRoles: [{ type: String, enum: ['Sinh viên', 'Giảng viên', 'Quản trị viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'] }],
   targetMajors: [String],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   createdAt: { type: Date, default: Date.now },
@@ -2277,13 +2348,14 @@ app.get('/calendar/events', authenticateJWT, async (req, res) => {
     }
 
     // Lọc theo quyền truy cập
+    const normalizedUserRole = req.user.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : req.user.role;
     const accessFilter = {
       $or: [
         { visibility: 'public' },
         { createdBy: req.user._id }, // Sự kiện do mình tạo
         { 
           visibility: 'role_only',
-          targetRoles: { $in: [req.user.role === 'Chủ nhiệm bộ môn' ? 'Lãnh đạo bộ môn' : req.user.role] }
+          targetRoles: { $in: [normalizedUserRole] }
         }
       ]
     };
@@ -2294,10 +2366,10 @@ app.get('/calendar/events', authenticateJWT, async (req, res) => {
         visibility: 'major_only',
         targetMajors: { $in: [user.studentInfo.major] }
       });
-    } else if (['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role) && user.managedDepartment) {
+    } else if (['Lãnh đạo bộ môn', 'Chủ nhiệm bộ môn'].includes(req.user.role) && user.managedMajor) {
       accessFilter.$or.push({
         visibility: 'major_only',
-        targetMajors: { $in: [user.managedDepartment] }
+        targetMajors: { $in: [user.managedMajor] }
       });
     }
 
@@ -2672,11 +2744,16 @@ app.get('/profile', authenticateJWT, async (req, res) => {
     const studentInfo = user.studentInfo || {};
     const userInfo = user.userInfo || {};
 
+    // Normalize role for display
+    const normalizedRole = user.role === 'Lãnh đạo bộ môn' ? 'Chủ nhiệm bộ môn' : user.role;
+
     res.json({
       username: user.username,
-      role: user.role,
+      role: normalizedRole,
       userInfo,
       studentInfo,
+      managedDepartment: user.managedDepartment || null,
+      managedMajor: user.managedMajor || null,
       studentId: studentInfo.studentId || null,
       fullName: (studentInfo.fullName || userInfo.fullName || user.username),
       faculty: (studentInfo.faculty || userInfo.faculty || ''),

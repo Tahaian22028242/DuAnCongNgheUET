@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Login';
 import Register from './Register';
@@ -22,7 +22,7 @@ import Notifications from './Notifications'; // Import the Notifications compone
 import FacultyLeaderTopics from './FacultyLeaderTopics';
 import DepartmentMajorMapping from './DepartmentMajorMapping';
 import TopicManagement from './TopicManagement';
-import FacultyLeaderManagement from './FacultyLeaderManagement';
+import TopicArchive from './TopicArchive';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -150,7 +150,7 @@ function App() {
                 }
             />
             <Route
-                path="/head/statistics"
+                path="/student-statistics"
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
                         <HeadStatistics />
@@ -166,14 +166,6 @@ function App() {
                 }
             />
             <Route
-                path="/faculty-leader/management"
-                element={
-                    <ProtectedRoute isAuthenticated={isAuthenticated}>
-                        <FacultyLeaderManagement />
-                    </ProtectedRoute>
-                }
-            />
-            <Route
                 path="/topic-management"
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
@@ -185,7 +177,7 @@ function App() {
                 path="/topic-archive"
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
-                        <TopicManagement />
+                        <TopicArchive />
                     </ProtectedRoute>
                 }
             />

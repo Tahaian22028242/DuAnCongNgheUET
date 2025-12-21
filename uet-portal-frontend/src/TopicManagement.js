@@ -1121,7 +1121,7 @@ function TopicManagement() {
                 )}
 
                 <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-                  Danh sách file đã upload:
+                  Danh sách tệp đã tải lên:
                 </Typography>
 
                 {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 ? (

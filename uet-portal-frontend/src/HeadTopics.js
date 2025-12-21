@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Button, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, Alert, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, List, ListItem, ListItemText, ListItemSecondaryAction,
-  IconButton, Tooltip, Chip, Autocomplete, Grid, CircularProgress
+  IconButton, Tooltip, Chip, Autocomplete, Grid, CircularProgress, Snackbar
 } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import AppLayout from './AppLayout';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -21,7 +22,7 @@ function HeadTopics() {
   const [proposals, setProposals] = useState([]);
   const [archiveProposals, setArchiveProposals] = useState([]);
   const [archiveLoading, setArchiveLoading] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
+  const [tabValue, setTabValue] = useState(0); // 0 = Chờ duyệt, 1 = Lưu trữ
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedProposal, setSelectedProposal] = useState(null);
@@ -48,10 +49,9 @@ function HeadTopics() {
 
   useEffect(() => {
     fetchProposals();
-    fetchArchiveProposals();
   }, []);
 
-  const fetchArchiveProposals = async () => {
+  const fetchArchiveProposals = useCallback(async () => {
     setArchiveLoading(true);
     try {
       const response = await fetch('http://localhost:5000/head/topic-proposals-archive', {
@@ -65,7 +65,7 @@ function HeadTopics() {
       console.error('Could not load archive proposals:', error);
     }
     setArchiveLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     // fetch list of lecturers for secondary supervisor autocomplete (optional)
@@ -106,6 +106,27 @@ function HeadTopics() {
       setMessage({ type: 'error', text: 'Không thể tải danh sách đề tài.' });
     }
     setLoading(false);
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+    if (newValue === 1 && archiveProposals.length === 0) {
+      fetchArchiveProposals();
+    }
+  };
+
+  const handleHideFromArchive = async (proposalId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa đề tài này khỏi danh sách lưu trữ của bạn? Đề tài vẫn tồn tại trong dữ liệu hệ thống.')) {
+      return;
+    }
+    try {
+      const res = await axios.put(`http://localhost:5000/head/hide-archive/${proposalId}`, {}, { withCredentials: true });
+      setMessage({ type: 'success', text: res.data?.message || 'Đã xóa khỏi lưu trữ' });
+      await fetchArchiveProposals();
+    } catch (err) {
+      console.error('Error hiding from archive:', err);
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi xóa' });
+    }
   };
 
   // Open a review dialog (approve/reject) - mirror SupervisorTopics flow
@@ -272,33 +293,140 @@ function HeadTopics() {
     }
   };
 
-  const list = showArchive ? archiveProposals : proposals;
-  const isLoading = showArchive ? archiveLoading : loading;
-  const titleText = showArchive ? 'Lưu trữ đề tài (Lãnh đạo bộ môn)' : 'Đề tài chờ phê duyệt (Lãnh đạo bộ môn)';
+  const renderProposalTable = (proposalsList, isArchive = false) => {
+    if (proposalsList.length === 0) {
+      return (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography color="text.secondary">
+            {isArchive ? 'Chưa có đề tài nào trong lưu trữ.' : 'Không có đề tài nào chờ phê duyệt.'}
+          </Typography>
+        </Paper>
+      );
+    }
+
+    return (
+      <>
+        <Typography variant="subtitle1" sx={{ mb: 2, color: 'text.secondary' }}>
+          Tổng cộng: {proposalsList.length} đề xuất
+        </Typography>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                <TableCell><strong>STT</strong></TableCell>
+                <TableCell><strong>Tên đề tài</strong></TableCell>
+                <TableCell><strong>Học viên</strong></TableCell>
+                <TableCell><strong>Khoa</strong></TableCell>
+                <TableCell><strong>Ngành</strong></TableCell>
+                <TableCell><strong>GVHD chính</strong></TableCell>
+                <TableCell><strong>Trạng thái</strong></TableCell>
+                <TableCell align="right" sx={{ width: 150 }}><strong>Hành động</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {proposalsList.map((proposal, index) => (
+                <TableRow key={proposal._id} hover>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {proposal.topicTitle}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {proposal.studentName}
+                    <br />
+                    <Typography variant="caption" color="text.secondary">
+                      {proposal.studentId}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{proposal.studentFaculty || 'N/A'}</TableCell>
+                  <TableCell>{proposal.studentMajor || 'N/A'}</TableCell>
+                  <TableCell>{proposal.primarySupervisorName || proposal.primarySupervisor}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={getStatusText(proposal.status)}
+                      color={getStatusColor(proposal.status)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          setSelectedProposal(proposal);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <VisibilityIcon fontSize='small'/>
+                      </Button>
+                      {isArchive && (
+                        <Tooltip title="Xóa khỏi danh sách lưu trữ">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleHideFromArchive(proposal._id)}
+                            sx={{
+                              color: 'text.secondary',
+                              '&:hover': {
+                                bgcolor: 'error.main',
+                                color: 'common.white'
+                              }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </>
+    );
+  };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="dashboard">
+          <div className="dashboard-content">
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <>
       <AppLayout>
         <div className="dashboard">
           <div className="dashboard-content">
-            <Box sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h5">
-                  {titleText}
+            <Box sx={{ p: 3, width: '1100px', margin: '0 auto'}}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h4">
+                  Quản lý đề tài (Lãnh đạo bộ môn)
                 </Typography>
-                <Box>
+                <Box sx={{ display: 'flex', gap: 2 }}>
                   <Button
-                    variant={showArchive ? 'outlined' : 'contained'}
-                    size="small"
-                    onClick={() => setShowArchive(false)}
-                    sx={{ mr: 1 }}
+                    variant={tabValue === 0 ? "contained" : "outlined"}
+                    color="primary"
+                    onClick={() => handleTabChange(null, 0)}
+                    sx={{ minWidth: 150 }}
                   >
-                    Chờ phê duyệt
+                    Đề tài chờ duyệt
                   </Button>
                   <Button
-                    variant={showArchive ? 'contained' : 'outlined'}
-                    size="small"
-                    onClick={() => setShowArchive(true)}
+                    variant={tabValue === 1 ? "contained" : "outlined"}
+                    color="success"
+                    onClick={() => handleTabChange(null, 1)}
+                    sx={{ minWidth: 150 }}
                   >
                     Lưu trữ
                   </Button>
@@ -306,86 +434,30 @@ function HeadTopics() {
               </Box>
 
               {message.text && (
-                <Alert severity={message.type} sx={{ mb: 2 }} onClose={() => setMessage({ type: '', text: '' })}>
-                  {message.text}
-                </Alert>
+                <Snackbar
+                  open={Boolean(message.text)}
+                  autoHideDuration={6000}
+                  onClose={() => setMessage({ type: '', text: '' })}
+                  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                >
+                  <Alert severity={message.type} onClose={() => setMessage({ type: '', text: '' })}>
+                    {message.text}
+                  </Alert>
+                </Snackbar>
               )}
 
-              {isLoading ? (
-                <Typography>Đang tải...</Typography>
-              ) : list.length === 0 ? (
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography>Không có đề tài nào.</Typography>
-                </Paper>
-              ) : (
-                <>
-                  <Typography variant="subtitle1" sx={{ mb: 2, color: 'text.secondary' }}>
-                    Tổng cộng: {list.length} đề xuất
-                  </Typography>
-
-                  <TableContainer component={Paper}>
-                    <Table>
-                      <TableHead>
-                        <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                          <TableCell><strong>STT</strong></TableCell>
-                          <TableCell><strong>Tên đề tài</strong></TableCell>
-                          <TableCell><strong>Học viên</strong></TableCell>
-                          <TableCell><strong>Khoa</strong></TableCell>
-                          <TableCell><strong>Ngành</strong></TableCell>
-                          <TableCell><strong>GVHD chính</strong></TableCell>
-                          <TableCell><strong>Trạng thái</strong></TableCell>
-                          <TableCell><strong>Hành động</strong></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {list.map((proposal, index) => (
-                          <TableRow key={proposal._id} hover>
-                            <TableCell>{index + 1}</TableCell>
-                            <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {proposal.topicTitle}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              {proposal.studentName}
-                              <br />
-                              <Typography variant="caption" color="text.secondary">
-                                {proposal.studentId}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>{proposal.studentFaculty || 'N/A'}</TableCell>
-                            <TableCell>{proposal.studentMajor || 'N/A'}</TableCell>
-                            <TableCell>
-                              {proposal.primarySupervisorName || proposal.primarySupervisor || '-'}
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                label={getStatusText(proposal.status)}
-                                color={getStatusColor(proposal.status)}
-                                size="small"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                startIcon={<VisibilityIcon />}
-                                onClick={() => {
-                                  setSelectedProposal(proposal);
-                                  setReviewDialog(false);
-                                  // setDialogOpen(true);
-                                }}
-                              >
-                                Xem chi tiết
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </>
-              )}
+              <Box sx={{ minHeight: '400px' }}>
+                {tabValue === 0 && renderProposalTable(proposals)}
+                {tabValue === 1 && (
+                  archiveLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    renderProposalTable(archiveProposals, true)
+                  )
+                )}
+              </Box>
 
               {/* Dialog xem chi tiết đề tài */}
               <Dialog
@@ -406,7 +478,157 @@ function HeadTopics() {
                       />
                     </DialogTitle>
                     <DialogContent dividers>
-                      <Grid container spacing={3}>
+                      {/* Simplified view for archive tab */}
+                      {tabValue === 1 ? (
+                        <Box sx={{ minWidth: 600, width: "100%" }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            <strong>Học viên:</strong> {selectedProposal.studentName} ({selectedProposal.studentId})
+                          </Typography>
+                          <Typography variant="subtitle2" gutterBottom>
+                            <strong>Khoa:</strong> {selectedProposal.studentFaculty || 'N/A'}
+                          </Typography>
+                          <Typography variant="subtitle2" gutterBottom>
+                            <strong>Ngành:</strong> {selectedProposal.studentMajor || 'N/A'}
+                          </Typography>
+                          <Typography variant="subtitle2" gutterBottom>
+                            <strong>GVHD chính:</strong> {selectedProposal.primarySupervisorName || selectedProposal.primarySupervisor}
+                          </Typography>
+                          {selectedProposal.secondarySupervisor && (
+                            <Typography variant="subtitle2" gutterBottom>
+                              <strong>GVHD phụ:</strong> {selectedProposal.secondarySupervisorName || selectedProposal.secondarySupervisor}
+                            </Typography>
+                          )}
+                          <Typography variant="subtitle2" gutterBottom>
+                            <strong>Ngày gửi:</strong> {formatDate(selectedProposal.submittedAt)}
+                          </Typography>
+
+                          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                            <strong>Nội dung đề tài:</strong>
+                          </Typography>
+                          <Paper sx={{ p: 2, bgcolor: '#f5f5f5', mb: 2 }}>
+                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                              {selectedProposal.content}
+                            </Typography>
+                          </Paper>
+
+                          {selectedProposal.supervisorComments && selectedProposal.supervisorComments.length > 0 && (
+                            <>
+                              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                                <strong>Nhận xét của GVHD:</strong>
+                              </Typography>
+                              <Paper sx={{ p: 2, bgcolor: '#e3f2fd', mb: 1 }}>
+                                <Typography variant="body2">{selectedProposal.supervisorComments}</Typography>
+                              </Paper>
+                              {selectedProposal.reviewedAt && (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                  Đánh giá lúc: {formatDate(selectedProposal.reviewedAt)}
+                                </Typography>
+                              )}
+                            </>
+                          )}
+
+                          {selectedProposal.headComments && selectedProposal.headComments.length > 0 && (
+                            <>
+                              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                                <strong>Nhận xét của Lãnh đạo bộ môn:</strong>
+                              </Typography>
+                              <Paper sx={{ p: 2, bgcolor: '#fff8e1', mb: 1 }}>
+                                <Typography variant="body2">{selectedProposal.headComments}</Typography>
+                              </Paper>
+                              {selectedProposal.headReviewedAt ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                  Đã đánh giá lúc: {formatDate(selectedProposal.headReviewedAt)}
+                                </Typography>
+                              ) : selectedProposal.headCommentSavedAt ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                  Đã lưu nháp lúc: {formatDate(selectedProposal.headCommentSavedAt)}
+                                </Typography>
+                              ) : null}
+                            </>
+                          )}
+
+                          {selectedProposal.facultyLeaderComments && selectedProposal.facultyLeaderComments.length > 0 && (
+                            <>
+                              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                                <strong>Nhận xét của Lãnh đạo khoa:</strong>
+                              </Typography>
+                              <Paper sx={{ p: 2, bgcolor: '#fff3e0', mb: 1 }}>
+                                <Typography variant="body2">{selectedProposal.facultyLeaderComments}</Typography>
+                              </Paper>
+                              {selectedProposal.facultyLeaderReviewedAt ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                  Đã đánh giá lúc: {formatDate(selectedProposal.facultyLeaderReviewedAt)}
+                                </Typography>
+                              ) : selectedProposal.facultyLeaderCommentSavedAt ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                  Đã lưu nháp lúc: {formatDate(selectedProposal.facultyLeaderCommentSavedAt)}
+                                </Typography>
+                              ) : null}
+                            </>
+                          )}
+
+                          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                            <strong>Tài liệu đính kèm:</strong>
+                          </Typography>
+                          {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 ? (
+                            <Box sx={{ mt: 1 }}>
+                              {selectedProposal.outlineFiles.map((file, index) => (
+                                <Box
+                                  key={index}
+                                  sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    p: 1.5,
+                                    mb: 1,
+                                    bgcolor: '#f5f5f5',
+                                    borderRadius: 1,
+                                    border: '1px solid #e0e0e0'
+                                  }}
+                                >
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Tooltip title={file.originalName || file.originalname || file.filename}>
+                                      <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
+                                        {file.originalName || file.originalname || file.filename}
+                                      </Typography>
+                                    </Tooltip>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên'} • {file.uploadedAt ? formatDate(file.uploadedAt) : 'N/A'}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                                    <Tooltip title="Xem">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleViewFile(selectedProposal._id, file)}
+                                        sx={{ bgcolor: 'white', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}
+                                      >
+                                        <VisibilityIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Tải xuống">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleDownloadFile(selectedProposal._id, file.filename, file.originalName || file.originalname)}
+                                        sx={{ bgcolor: 'white', '&:hover': { bgcolor: 'success.main', color: 'white' } }}
+                                      >
+                                        <DownloadIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Box>
+                                </Box>
+                              ))}
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                              Không có tài liệu đính kèm
+                            </Typography>
+                          )}
+                        </Box>
+                      ) : (
+                        // Full featured view for active proposals tab
+                        <Grid container spacing={3}>
+
                         <Grid item xs={12} md={8}>
                           <Typography variant="subtitle2" gutterBottom>
                             <strong>Học viên:</strong> {selectedProposal.studentName} ({selectedProposal.studentId})
@@ -695,7 +917,8 @@ function HeadTopics() {
                             </Box>
                           )}
                         </Grid>
-                      </Grid>
+                        </Grid>
+                      )}
                     </DialogContent>
                     <DialogActions>
                       <Button onClick={() => setSelectedProposal(null)}>Đóng</Button>

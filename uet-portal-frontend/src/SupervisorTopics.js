@@ -423,13 +423,12 @@ function SupervisorTopics() {
                       <Button
                         size="small"
                         variant="outlined"
-                        startIcon={<VisibilityIcon />}
                         onClick={() => {
                           setSelectedProposal(proposal);
                           setReviewDialog(false);
                         }}
                       >
-                        Xem
+                        <VisibilityIcon fontSize='small'/>
                       </Button>
                       {isArchive && (
                         <Tooltip title="Xóa khỏi danh sách lưu trữ">

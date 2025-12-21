@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Drawer, List, ListItem, ListItemText, Box, IconButton } from '@mui/material';
+import { Drawer, List, ListItem, ListItemButton, ListItemText, Box, IconButton } from '@mui/material';
 import logo from './logo.png';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -122,7 +122,7 @@ const AppLayout = ({ children }) => {
                 <List
                     sx={{
                         p: 0,
-                        '& .MuiListItem-root': {
+                        '& .MuiListItemButton-root': {
                             minHeight: 40,
                             transition: 'min-height 0.2s',
                             color: 'white',
@@ -131,100 +131,88 @@ const AppLayout = ({ children }) => {
                         '& .MuiListItemText-primary': { color: 'white' },
                         '& .MuiSvgIcon-root': { color: 'white' }
                     }}>
-                    <ListItem button onClick={() => navigate('/dashboard')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/dashboard') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                    <ListItemButton onClick={() => navigate('/dashboard')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/dashboard') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <DashboardIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Trang chủ" />}
-                    </ListItem>
-                    <ListItem button onClick={() => navigate('/profile')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/profile') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                    </ListItemButton>
+                    <ListItemButton onClick={() => navigate('/profile')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/profile') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <AccountCircleIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Tài khoản" />}
-                    </ListItem>
+                    </ListItemButton>
                     {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
-                        <ListItem button onClick={() => navigate('/batches')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/batches') || location.pathname.startsWith('/batches/') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                        <ListItemButton onClick={() => navigate('/batches')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/batches') || location.pathname.startsWith('/batches/') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                             <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                             {drawerOpen && <ListItemText primary="Thông tin học viên" />}
-                        </ListItem>
+                        </ListItemButton>
                     )}
+                    <ListItemButton onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                        <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                        {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
+                    </ListItemButton>
                     {user.role === 'Quản trị viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                            <ListItemButton onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý giảng viên" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/admin/department-major-mapping')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/admin/department-major-mapping') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                            </ListItemButton>
+                            <ListItemButton onClick={() => navigate('/admin/department-major-mapping')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/admin/department-major-mapping') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <MapIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Ánh xạ Bộ môn - Ngành" />}
-                            </ListItem>
+                            </ListItemButton>
                         </>
                     )}
                     {user.role === 'Sinh viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                            <ListItemButton onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
-                                <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
-                            </ListItem>
+                            </ListItemButton>
                         </>
                     )}
                     {user.role === 'Giảng viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topics') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                            <ListItemButton onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topics') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
-                                <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
-                            </ListItem>
+                            </ListItemButton>
                         </>
                     )}
                     {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
                         <>
-                            <ListItem button onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/head/statistics')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/head/statistics') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                            <ListItemButton onClick={() => navigate('/student-statistics')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/student-statistics') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thống kê học viên" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
-                                <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
-                            </ListItem>
+                            </ListItemButton>
+                            <ListItemButton onClick={() => navigate('/head/topics')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                                {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
+                            </ListItemButton>
                         </>
                     )}
                     {user.role === 'Lãnh đạo khoa' && (
                         <>
-                            <ListItem button onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                            <ListItemButton onClick={() => navigate('/faculty-leader/topics')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
-                                <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
-                            </ListItem>
+                            </ListItemButton>
                         </>
                     )}
-                    <ListItem button onClick={() => navigate('/notifications')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/notifications') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                    <ListItemButton onClick={() => navigate('/notifications')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/notifications') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Thông báo" />}
-                    </ListItem>
-                    <ListItem button onClick={() => navigate('/calendar')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/calendar') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                    </ListItemButton>
+                    <ListItemButton onClick={() => navigate('/calendar')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/calendar') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <CalendarMonthIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Lịch" />}
-                    </ListItem>
-                    <ListItem button onClick={() => navigate('/settings')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/settings') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                    </ListItemButton>
+                    <ListItemButton onClick={() => navigate('/settings')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/settings') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <SettingsIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Cài đặt" />}
-                    </ListItem>
-                    <ListItem button onClick={handleLogout} sx={{ cursor: 'pointer', py: 0.5 }}>
+                    </ListItemButton>
+                    <ListItemButton onClick={handleLogout} sx={{ cursor: 'pointer', py: 0.5 }}>
                         <ExitToAppIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Đăng xuất" />}
-                    </ListItem>
+                    </ListItemButton>
                 </List>
             </Drawer>
             <main style={{ flexGrow: 1, padding: 0 }}>

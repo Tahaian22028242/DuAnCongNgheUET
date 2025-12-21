@@ -393,7 +393,7 @@ function HeadStatistics() {
             </ListItem>
           )}
           {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
-            <ListItem button onClick={() => navigate('/head/statistics')}>
+            <ListItem button onClick={() => navigate('/student-statistics')}>
               <GroupIcon sx={{ mr: 1 }} />
               <ListItemText primary="Thống kê học viên" />
             </ListItem>
