@@ -179,7 +179,6 @@ Build files sẽ được tạo trong thư mục `frontend/build/`
 
 ## 📁 Cấu trúc dự án
 
-```
 DuAnCongNgheUET/
 ├── backend/
 │   ├── server.js              # Entry point, API routes, middleware
@@ -211,7 +210,6 @@ DuAnCongNgheUET/
 │   │   ├── HeadTopics.js      # Đề tài lãnh đạo bộ môn
 │   │   ├── FacultyLeaderTopics.js # Đề tài lãnh đạo khoa
 │   │   ├── HeadStatistics.js  # Thống kê
-│   │   ├── UploadHeads.js     # Upload trưởng bộ môn
 │   │   ├── UploadLecturers.js # Upload giảng viên
 │   │   │
 │   │   # Shared components
@@ -227,7 +225,6 @@ DuAnCongNgheUET/
 │
 ├── package.json              # Root package.json (concurrently)
 └── README.md                 # File này
-```
 
 ## 🔌 API Endpoints
 
@@ -276,7 +273,7 @@ DuAnCongNgheUET/
 | ------------------------ | ------------------------- | -------------------------------------------------------------------------------------------------- |
 | **Student**        | Sinh viên                | Đề xuất đề tài, chỉnh sửa đề xuất, theo dõi trạng thái                               |
 | **Supervisor**     | Giảng viên hướng dẫn | Phê duyệt/từ chối đề tài, quản lý đề tài được giao                                  |
-| **Head**           | Lãnh đạo bbooj môn    | Xem tất cả đề tài bộ môn, phê duyệt/từ chối đề tài, thống kê, quản lý lưu trữ |
+| **Head**           | Lãnh đạo bộ môn     | Xem tất cả đề tài bộ môn, phê duyệt/từ chối đề tài, thống kê, quản lý lưu trữ |
 | **Faculty Leader** | Lãnh đạo khoa          | Xem tất cả đề tài khoa, phê duyệt/từ chối đề tài, quản lý cấu trúc                 |
 
 ## 🔐 Bảo mật

@@ -10,7 +10,6 @@ import Upload from './Upload';
 import Profile from './Profile';
 import ProposeTopic from './ProposeTopic';
 import SupervisorTopics from './SupervisorTopics';
-import UploadHeads from './UploadHeads';
 import HeadTopics from './HeadTopics';
 import HeadStatistics from './HeadStatistics';
 import Settings from './Settings';
@@ -98,14 +97,6 @@ function App() {
                 element={
                     <ProtectedRoute isAuthenticated={isAuthenticated}>
                         <Upload />
-                    </ProtectedRoute>
-                }
-            />
-            <Route
-                path="/upload-heads"
-                element={
-                    <ProtectedRoute isAuthenticated={isAuthenticated}>
-                        <UploadHeads />
                     </ProtectedRoute>
                 }
             />
