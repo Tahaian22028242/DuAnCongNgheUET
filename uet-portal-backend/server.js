@@ -128,7 +128,8 @@ const topicProposalSchema = new mongoose.Schema({
     default: 'not_uploaded'
   },
   outlineComments: { type: String }, // Nhận xét của GVHD về file đề cương
-  outlineReviewedAt: { type: Date }
+  outlineReviewedAt: { type: Date },
+  hiddenFrom: [{ type: String }] // Danh sách username của giảng viên đã ẩn đề tài này
 });
 
 const TopicProposal = mongoose.model('TopicProposal', topicProposalSchema);
@@ -1523,6 +1524,45 @@ app.put('/supervisor/review-topic/:id', authenticateJWT, async (req, res) => {
   }
 });
 
+// API để ẩn đề tài khỏi archive của giảng viên
+app.put('/supervisor/hide-archive/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (!['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Chỉ giảng viên mới có quyền thực hiện' });
+    }
+
+    const proposal = await TopicProposal.findById(req.params.id);
+    if (!proposal) {
+      return res.status(404).json({ message: 'Không tìm thấy đề xuất' });
+    }
+
+    // Kiểm tra quyền: chỉ GVHD chính hoặc phụ mới được ẩn
+    if (proposal.primarySupervisor !== req.user.username && 
+        proposal.secondarySupervisor !== req.user.username) {
+      return res.status(403).json({ message: 'Bạn không có quyền ẩn đề tài này' });
+    }
+
+    // Thêm username vào danh sách hiddenFrom nếu chưa có
+    if (!proposal.hiddenFrom) {
+      proposal.hiddenFrom = [];
+    }
+    if (!proposal.hiddenFrom.includes(req.user.username)) {
+      proposal.hiddenFrom.push(req.user.username);
+    }
+
+    await proposal.save();
+
+    res.status(200).json({ 
+      message: 'Đã ẩn đề tài khỏi danh sách lưu trữ',
+      proposal 
+    });
+
+  } catch (error) {
+    console.error('Error hiding proposal from archive:', error);
+    res.status(500).json({ message: 'Lỗi server khi ẩn đề tài', error: error.message });
+  }
+});
+
 // API Lãnh đạo bộ môn xem các đề tài chờ duyệt
 app.get('/head/topic-proposals', authenticateJWT, async (req, res) => {
   try {
@@ -2776,7 +2816,8 @@ app.get('/supervisor/topic-proposals-archive', authenticateJWT, async (req, res)
       $or: [
         { primarySupervisor: req.user.username },
         { secondarySupervisor: req.user.username }
-      ]
+      ],
+      hiddenFrom: { $ne: req.user.username } // Loại bỏ các đề tài đã bị ẩn
     }).sort({ submittedAt: -1 });
 
     console.log(`📚 Supervisor ${req.user.username} has ${proposals.length} proposals in archive`);
@@ -3271,7 +3312,7 @@ app.post('/student/upload-outline/:proposalId', authenticateJWT, outlineUpload.a
     }
 
     res.json({ 
-      message: 'Upload file đề cương thành công',
+      message: 'Tải lên tệp đề cương thành công',
       files: newFiles
     });
 

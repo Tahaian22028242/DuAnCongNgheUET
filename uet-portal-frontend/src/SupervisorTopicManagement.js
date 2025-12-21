@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Typography, Box, Paper,
-  Button, Dialog, DialogTitle, DialogContent,
+  Typography, Box, Paper, Button, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, Alert, Chip, CircularProgress,
-  Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Grid, Autocomplete, IconButton, Tooltip,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Grid, Autocomplete, IconButton, Tooltip, List, ListItem, ListItemText,
   Tabs, Tab, Snackbar
 } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
@@ -13,12 +12,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
-import axios from 'axios';
-import { format } from 'date-fns';
-import './Dashboard.css';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
+import axios from 'axios';
+import { format } from 'date-fns';
 import AppLayout from './AppLayout';
+import './Dashboard.css';
 
 // ==================== CONSTANTS ====================
 const API_BASE = 'http://localhost:5000';
@@ -33,6 +32,21 @@ const PROPOSAL_STATUS = {
   APPROVED_FACULTY: 'approved_by_faculty_leader',
   REJECTED_HEAD: 'rejected_by_head',
   REJECTED_FACULTY: 'rejected_by_faculty_leader'
+};
+
+const OUTLINE_STATUS = {
+  NOT_UPLOADED: 'not_uploaded',
+  PENDING: 'pending_review',
+  APPROVED: 'approved',
+  REJECTED: 'rejected'
+};
+
+const USER_ROLES = {
+  STUDENT: 'Sinh viên',
+  LECTURER: 'Giảng viên',
+  HEAD: 'Lãnh đạo bộ môn',
+  FACULTY_LEADER: 'Lãnh đạo khoa',
+  ADMIN: 'Quản trị viên'
 };
 
 // ==================== UTILITY FUNCTIONS ====================
@@ -75,11 +89,83 @@ const formatDate = (dateString) => {
   }
 };
 
-// ==================== MAIN COMPONENT ====================
-function SupervisorTopics() {
+// ==================== CUSTOM HOOKS ====================
+const useProposals = (user) => {
   const [proposals, setProposals] = useState([]);
+  const [archiveProposals, setArchiveProposals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [archiveLoading, setArchiveLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const fetchProposals = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/supervisor/topic-proposals`, { withCredentials: true });
+      setProposals(res.data);
+    } catch (err) {
+      console.error('Error fetching proposals:', err);
+      setError(err.response?.status === 403 
+        ? 'Bạn không có quyền truy cập chức năng này.' 
+        : 'Không thể tải danh sách đề xuất.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchArchive = useCallback(async () => {
+    setArchiveLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/supervisor/topic-proposals-archive`, { withCredentials: true });
+      setArchiveProposals(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Error fetching archive:', err);
+      setArchiveProposals([]);
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProposals();
+  }, [fetchProposals]);
+
+  return {
+    proposals,
+    archiveProposals,
+    loading,
+    archiveLoading,
+    error,
+    fetchProposals,
+    fetchArchive,
+    setProposals
+  };
+};
+
+const useLecturers = () => {
+  const [lecturers, setLecturers] = useState([]);
+
+  useEffect(() => {
+    const fetchLecturers = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/lecturers`, { withCredentials: true });
+        setLecturers(res.data);
+      } catch (err) {
+        console.error('Error fetching lecturers:', err);
+      }
+    };
+    fetchLecturers();
+  }, []);
+
+  return lecturers;
+};
+
+// ==================== MAIN COMPONENT ====================
+function SupervisorTopicManagement() {
+  const navigate = useNavigate();
+  const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+  
+  // State management
+  const [tabValue, setTabValue] = useState(0);
   const [selectedProposal, setSelectedProposal] = useState(null);
   const [reviewDialog, setReviewDialog] = useState(false);
   const [reviewData, setReviewData] = useState({
@@ -91,73 +177,25 @@ function SupervisorTopics() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [lecturers, setLecturers] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [fileDescription, setFileDescription] = useState('');
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewName, setPreviewName] = useState('');
-  const [archiveProposals, setArchiveProposals] = useState([]);
-  const [archiveLoading, setArchiveLoading] = useState(false);
-  const [tabValue, setTabValue] = useState(0); // 0 = Đề tài chờ duyệt, 1 = Lưu trữ
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteFilename, setPendingDeleteFilename] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchProposals();
-    fetchLecturers();
-  }, []);
+  // Custom hooks
+  const { proposals, archiveProposals, loading, archiveLoading, error, fetchProposals, fetchArchive } = useProposals(user);
+  const lecturers = useLecturers();
 
-  const fetchArchiveProposals = useCallback(async () => {
-    setArchiveLoading(true);
-    try {
-      const response = await axios.get(`${API_BASE}/supervisor/topic-proposals-archive`, { withCredentials: true });
-      const list = Array.isArray(response.data) ? response.data : [];
-      setArchiveProposals(list);
-    } catch (err) {
-      console.error('Error fetching archive proposals:', err);
-      setArchiveProposals([]);
-    }
-    setArchiveLoading(false);
-  }, []);
-
-  const fetchProposals = async () => {
-    try {
-      const response = await axios.get(`${API_BASE}/supervisor/topic-proposals`, {
-        withCredentials: true,
-      });
-      setProposals(response.data);
-      setLoading(false);
-    } catch (err) {
-      console.error('Error fetching proposals:', err);
-      if (err.response?.status === 403) {
-        setError('Bạn không có quyền truy cập chức năng này.');
-      } else {
-        setError('Không thể tải danh sách đề xuất. Vui lòng thử lại sau.');
-      }
-      setLoading(false);
-    }
-  };
-
-  const fetchLecturers = async () => {
-    try {
-      const response = await axios.get(`${API_BASE}/lecturers`, {
-        withCredentials: true,
-      });
-      setLecturers(response.data);
-    } catch (err) {
-      console.error('Error fetching lecturers:', err);
-    }
-  };
-
+  // Handlers
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
     if (newValue === 1 && archiveProposals.length === 0) {
-      fetchArchiveProposals();
+      fetchArchive();
     }
   };
 
@@ -225,11 +263,11 @@ function SupervisorTopics() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      setMessage({ type: 'success', text: 'Upload file thành công!' });
+      setMessage({ type: 'success', text: 'Tải tệp lên thành công!' });
       setSelectedFiles([]);
       setFileDescription('');
       fetchProposals();
-      if (tabValue === 1) fetchArchiveProposals();
+      if (tabValue === 1) fetchArchive();
     } catch (err) {
       console.error('Error uploading files:', err);
       setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi upload file' });
@@ -282,7 +320,6 @@ function SupervisorTopics() {
   const handleDeleteFile = (proposalId, filename) => {
     const p = [...proposals, ...archiveProposals].find(x => x._id === proposalId) || selectedProposal;
     if (!p) return;
-    setSelectedProposal(p);
     setPendingDeleteFilename(filename);
     setConfirmOpen(true);
   };
@@ -300,7 +337,7 @@ function SupervisorTopics() {
       });
       setMessage({ type: 'success', text: 'Đã xóa file.' });
       fetchProposals();
-      if (tabValue === 1) fetchArchiveProposals();
+      if (tabValue === 1) fetchArchive();
       
       setSelectedProposal(prev => {
         if (prev) {
@@ -326,46 +363,25 @@ function SupervisorTopics() {
     setPreviewName('');
   };
 
+  // Check permissions
   const isPrimarySupervisor = (proposal) => user.username === proposal?.primarySupervisor;
-  
-  const canEditProposal = (proposal) => {
-    return isPrimarySupervisor(proposal) && ![
-      PROPOSAL_STATUS.REJECTED,
-      PROPOSAL_STATUS.REJECTED_HEAD,
-      PROPOSAL_STATUS.REJECTED_FACULTY
-    ].includes(proposal?.status);
-  };
-  
-  const canDeleteFile = (proposal) => {
-    return isPrimarySupervisor(proposal) && (tabValue === 1 || proposal?.outlineStatus !== 'approved');
-  };
+  const canEditProposal = (proposal) => isPrimarySupervisor(proposal) && ![
+    PROPOSAL_STATUS.REJECTED,
+    PROPOSAL_STATUS.REJECTED_HEAD,
+    PROPOSAL_STATUS.REJECTED_FACULTY
+  ].includes(proposal?.status);
+  const canDeleteFile = (proposal) =>
+    [USER_ROLES.LECTURER, USER_ROLES.HEAD, USER_ROLES.FACULTY_LEADER].includes(user.role) &&
+    isPrimarySupervisor(proposal) &&
+    (tabValue === 1 || proposal?.outlineStatus !== OUTLINE_STATUS.APPROVED);
 
-  const handleHideFromArchive = async (proposalId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa đề tài này khỏi danh sách lưu trữ của bạn? Đề tài vẫn tồn tại trong dữ liệu hệ thống.')) {
-      return;
-    }
-    try {
-      await axios.put(
-        `${API_BASE}/supervisor/hide-archive/${proposalId}`,
-        {},
-        { withCredentials: true }
-      );
-      setMessage({ type: 'success', text: 'Đã ẩn đề tài khỏi danh sách lưu trữ' });
-      // Remove from local state
-      setArchiveProposals(prev => prev.filter(p => p._id !== proposalId));
-    } catch (err) {
-      console.error('Error hiding from archive:', err);
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi khi ẩn đề tài' });
-    }
-  };
-
-  // Render proposal table
+  // Render functions
   const renderProposalTable = (proposalsList, isArchive = false) => {
     if (proposalsList.length === 0) {
       return (
         <Paper sx={{ p: 3, textAlign: 'center' }}>
           <Typography color="text.secondary">
-            {isArchive ? 'Không có đề tài trong lưu trữ.' : 'Hiện chưa có đề tài nào đang chờ duyệt.'}
+            {isArchive ? 'Không có đề tài trong lưu trữ.' : 'Hiện chưa có đề xuất nào từ học viên.'}
           </Typography>
         </Paper>
       );
@@ -388,7 +404,7 @@ function SupervisorTopics() {
                 <TableCell><strong>GVHD chính</strong></TableCell>
                 <TableCell><strong>GVHD phụ</strong></TableCell>
                 <TableCell><strong>Trạng thái</strong></TableCell>
-                <TableCell align="right" sx={{ width: 150 }}><strong>Hành động</strong></TableCell>
+                <TableCell><strong>Hành động</strong></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -418,37 +434,18 @@ function SupervisorTopics() {
                       size="small"
                     />
                   </TableCell>
-                  <TableCell align="right">
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<VisibilityIcon />}
-                        onClick={() => {
-                          setSelectedProposal(proposal);
-                          setReviewDialog(false);
-                        }}
-                      >
-                        Xem
-                      </Button>
-                      {isArchive && (
-                        <Tooltip title="Xóa khỏi danh sách lưu trữ">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleHideFromArchive(proposal._id)}
-                            sx={{
-                              color: 'text.secondary',
-                              '&:hover': {
-                                bgcolor: 'error.main',
-                                color: 'common.white'
-                              }
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
+                  <TableCell>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<VisibilityIcon />}
+                      onClick={() => {
+                        setSelectedProposal(proposal);
+                        setReviewDialog(false);
+                      }}
+                    >
+                      Xem
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -459,148 +456,27 @@ function SupervisorTopics() {
     );
   };
 
-  // Render detail dialog
-  const renderDetailDialog = () => {
-    // Simplified view for archive tab
-    if (tabValue === 1 && selectedProposal) {
-      return (
-        <Dialog
-          open={selectedProposal !== null && !reviewDialog}
-          onClose={() => setSelectedProposal(null)}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>Chi tiết đề tài</DialogTitle>
-          <DialogContent>
-            <Box>
-              <Typography variant="body1">
-                <strong>Mã học viên:</strong> {selectedProposal.studentId}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Học viên:</strong> {selectedProposal.studentName}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Khoa:</strong> {selectedProposal.studentFaculty || 'N/A'}
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 1 }}>
-                <strong>Ngành:</strong> {selectedProposal.studentMajor || 'N/A'}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Tên đề tài:</strong> {selectedProposal.topicTitle}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Nội dung:</strong>
-              </Typography>
-              <Paper sx={{ p: 2, bgcolor: '#f5f5f5', mb: 2 }}>
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {selectedProposal.content}
-                </Typography>
-              </Paper>
-              <Typography variant="body1">
-                <strong>GVHD chính:</strong> {selectedProposal.primarySupervisorName || selectedProposal.primarySupervisor}
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 1 }}>
-                <strong>GVHD phụ:</strong> {selectedProposal.secondarySupervisorName || selectedProposal.secondarySupervisor || 'N/A'}
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 1 }}>
-                <strong>Trạng thái:</strong>{' '}
-                <Chip
-                  label={getStatusText(selectedProposal.status)}
-                  color={getStatusColor(selectedProposal.status)}
-                  size="small"
-                />
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 1 }}>
-                <strong>Ngày gửi:</strong> {formatDate(selectedProposal.submittedAt)}
-              </Typography>
-
-              {selectedProposal.supervisorComments && (
-                <Typography variant="body1">
-                  <strong>Nhận xét GVHD:</strong> {selectedProposal.supervisorComments}
-                </Typography>
-              )}
-
-              {selectedProposal.headComments && (
-                <Typography variant="body1">
-                  <strong>Nhận xét Lãnh đạo bộ môn:</strong> {selectedProposal.headComments}
-                </Typography>
-              )}
-
-              {selectedProposal.facultyLeaderComments && (
-                <Typography variant="body1">
-                  <strong>Nhận xét Lãnh đạo khoa:</strong> {selectedProposal.facultyLeaderComments}
-                </Typography>
-              )}
-
-              {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body1" sx={{ mb: 1 }}>
-                    <strong>Danh sách tài liệu đính kèm:</strong> ({selectedProposal.outlineFiles.length} file)
-                  </Typography>
-                  {selectedProposal.outlineFiles.map((file, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="body2" noWrap>
-                          {file.originalName || file.filename}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên'} • {formatDate(file.uploadedAt)}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <Tooltip title="Xem">
-                          <IconButton size="small" onClick={() => handleViewFile(selectedProposal._id, file)}>
-                            <VisibilityIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Tải xuống">
-                          <IconButton size="small" onClick={() => handleDownloadFile(selectedProposal._id, file.filename, file.originalName)}>
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        {canDeleteFile(selectedProposal) && (
-                          <Tooltip title="Xóa">
-                            <IconButton size="small" color="error" onClick={() => handleDeleteFile(selectedProposal._id, file.filename)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                      </Box>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setSelectedProposal(null)}>Đóng</Button>
-          </DialogActions>
-        </Dialog>
-      );
-    }
-
-    // Full featured view for active proposals tab
-    return (
-      <Dialog
-        open={selectedProposal !== null && !reviewDialog}
-        onClose={() => setSelectedProposal(null)}
-        maxWidth="lg"
-        fullWidth
-      >
-        {selectedProposal && (
-          <>
-            <DialogTitle>
-              Chi tiết đề tài: {selectedProposal.topicTitle}
-              <Chip
-                label={getStatusText(selectedProposal.status)}
-                color={getStatusColor(selectedProposal.status)}
-                size="small"
-                sx={{ ml: 2 }}
-              />
-            </DialogTitle>
-            <DialogContent dividers>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={8}>
+  const renderDetailDialog = () => (
+    <Dialog
+      open={selectedProposal !== null && !reviewDialog}
+      onClose={() => setSelectedProposal(null)}
+      maxWidth="lg"
+      fullWidth
+    >
+      {selectedProposal && (
+        <>
+          <DialogTitle>
+            Chi tiết đề tài: {selectedProposal.topicTitle}
+            <Chip
+              label={getStatusText(selectedProposal.status)}
+              color={getStatusColor(selectedProposal.status)}
+              size="small"
+              sx={{ ml: 2 }}
+            />
+          </DialogTitle>
+          <DialogContent dividers>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={8}>
                 <Typography variant="subtitle2" gutterBottom>
                   <strong>Học viên:</strong> {selectedProposal.studentName} ({selectedProposal.studentId})
                 </Typography>
@@ -635,7 +511,7 @@ function SupervisorTopics() {
                 <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
                   <strong>Danh sách tài liệu đính kèm:</strong>
                   <br />
-                  <em style={{ color: 'gray' }}>{selectedProposal.outlineFiles?.length || 0} tài liệu</em>
+                  <em style={{ color: 'gray' }}> {selectedProposal.outlineFiles?.length || 0} tài liệu</em>
                 </Typography>
                 {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 ? (
                   <Box sx={{ mt: 1 }}>
@@ -674,7 +550,7 @@ function SupervisorTopics() {
                     ))}
                   </Box>
                 ) : (
-                  <Typography color="text.secondary">Không có tài liệu đính kèm</Typography>
+                  <Typography color="text.secondary"> Không có tài liệu đính kèm</Typography>
                 )}
 
                 {selectedProposal.supervisorComments && (
@@ -759,6 +635,7 @@ function SupervisorTopics() {
                       <Alert severity="warning">Bạn là GVHD phụ - chỉ có quyền xem, không thể chỉnh sửa</Alert>
                     )}
 
+                    {/* Upload area */}
                     {canEditProposal(selectedProposal) && (
                       <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>Upload thêm file (GVHD):</Typography>
@@ -779,7 +656,7 @@ function SupervisorTopics() {
                           <Box sx={{ mb: 1 }}>
                             {selectedFiles.map((f, i) => (
                               <Typography key={i} variant="body2" color="text.secondary">
-                                {f.name}
+                                {f.name} ({f.size})
                               </Typography>
                             ))}
                           </Box>
@@ -822,13 +699,11 @@ function SupervisorTopics() {
           <DialogActions>
             <Button onClick={() => setSelectedProposal(null)}>Đóng</Button>
           </DialogActions>
-          </>
-        )}
-      </Dialog>
-    );
-  };
+        </>
+      )}
+    </Dialog>
+  );
 
-  // Render review dialog
   const renderReviewDialog = () => (
     <Dialog open={reviewDialog} onClose={() => setReviewDialog(false)} maxWidth="md" fullWidth>
       <DialogTitle>
@@ -912,101 +787,77 @@ function SupervisorTopics() {
   }
 
   return (
-    <>
-      <AppLayout>
-        <div className="dashboard">
-          <div className="dashboard-content">
-            <Box sx={{ p: 3, width: '1100px', margin: '0 auto'}}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4">
-                  Quản lý đề tài (Giảng viên)
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Button
-                    variant={tabValue === 0 ? "contained" : "outlined"}
-                    color="primary"
-                    onClick={() => handleTabChange(null, 0)}
-                    sx={{ minWidth: 150 }}
-                  >
-                    Đề tài chờ duyệt
-                  </Button>
-                  <Button
-                    variant={tabValue === 1 ? "contained" : "outlined"}
-                    color="success"
-                    onClick={() => handleTabChange(null, 1)}
-                    sx={{ minWidth: 150 }}
-                  >
-                    Lưu trữ
-                  </Button>
-                </Box>
-              </Box>
+    <AppLayout>
+      <div className="dashboard">
+        <div className="dashboard-content">
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h4" gutterBottom>
+              Quản lý đề tài (Giảng viên)
+            </Typography>
 
-              {message.text && (
-                <Snackbar
-                  open={Boolean(message.text)}
-                  autoHideDuration={6000}
-                  onClose={() => setMessage({ type: '', text: '' })}
-                  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                >
-                  <Alert severity={message.type} onClose={() => setMessage({ type: '', text: '' })}>
-                    {message.text}
-                  </Alert>
-                </Snackbar>
-              )}
+            {message.text && (
+              <Alert severity={message.type} sx={{ mb: 3 }} onClose={() => setMessage({ type: '', text: '' })}>
+                {message.text}
+              </Alert>
+            )}
 
-              <Box sx={{ minHeight: '400px' }}>
-                {tabValue === 0 && renderProposalTable(proposals.filter(p => p.status === PROPOSAL_STATUS.PENDING))}
-                {tabValue === 1 && (
-                  archiveLoading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                      <CircularProgress />
-                    </Box>
-                  ) : (
-                    renderProposalTable(archiveProposals, true)
-                  )
-                )}
-              </Box>
-
-              {renderDetailDialog()}
-              {renderReviewDialog()}
-
-              {/* Confirm delete dialog */}
-              <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-                <DialogTitle>Xác nhận</DialogTitle>
-                <DialogContent>
-                  <Typography>Bạn có chắc chắn muốn xóa file này?</Typography>
-                </DialogContent>
-                <DialogActions>
-                  <Button onClick={() => setConfirmOpen(false)}>Hủy</Button>
-                  <Button color="error" onClick={performDeleteFile} disabled={deleting}>
-                    {deleting ? 'Đang xóa...' : 'Xác nhận'}
-                  </Button>
-                </DialogActions>
-              </Dialog>
-
-              {/* Preview dialog */}
-              <Dialog open={previewOpen} onClose={handleClosePreview} maxWidth="lg" fullWidth>
-                <DialogTitle>{previewName}</DialogTitle>
-                <DialogContent sx={{ height: '80vh' }}>
-                  {previewUrl ? (
-                    <iframe title={previewName} src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} />
-                  ) : (
-                    <Typography>Không có file để xem</Typography>
-                  )}
-                </DialogContent>
-                <DialogActions>
-                  <Button onClick={handleClosePreview}>Đóng</Button>
-                  <Button component="a" href={previewUrl} download={previewName}>
-                    Tải
-                  </Button>
-                </DialogActions>
-              </Dialog>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+              <Tabs value={tabValue} onChange={handleTabChange}>
+                <Tab label="Đề tài chờ duyệt" />
+                <Tab label="Lưu trữ" />
+              </Tabs>
             </Box>
-          </div>
+
+            {tabValue === 0 && renderProposalTable(proposals)}
+            {tabValue === 1 && (
+              archiveLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                renderProposalTable(archiveProposals, true)
+              )
+            )}
+
+            {renderDetailDialog()}
+            {renderReviewDialog()}
+
+            {/* Confirm delete dialog */}
+            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+              <DialogTitle>Xác nhận</DialogTitle>
+              <DialogContent>
+                <Typography>Bạn có chắc chắn muốn xóa file này?</Typography>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setConfirmOpen(false)}>Hủy</Button>
+                <Button color="error" onClick={performDeleteFile} disabled={deleting}>
+                  {deleting ? 'Đang xóa...' : 'Xác nhận'}
+                </Button>
+              </DialogActions>
+            </Dialog>
+
+            {/* Preview dialog */}
+            <Dialog open={previewOpen} onClose={handleClosePreview} maxWidth="lg" fullWidth>
+              <DialogTitle>{previewName}</DialogTitle>
+              <DialogContent sx={{ height: '80vh' }}>
+                {previewUrl ? (
+                  <iframe title={previewName} src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} />
+                ) : (
+                  <Typography>Không có file để xem</Typography>
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={handleClosePreview}>Đóng</Button>
+                <Button component="a" href={previewUrl} download={previewName}>
+                  Tải
+                </Button>
+              </DialogActions>
+            </Dialog>
+          </Box>
         </div>
-      </AppLayout>
-    </>
+      </div>
+    </AppLayout>
   );
 }
 
-export default SupervisorTopics;
+export default SupervisorTopicManagement;

@@ -122,9 +122,6 @@ function Settings() {
         <div className="dashboard-content">
           <Box sx={{ p: 3, maxWidth: 500 }}>
             <Paper sx={{ p: 3 }}>
-              <Typography variant="h5" gutterBottom>
-                Đổi mật khẩu
-              </Typography>
               {message.text && (
                 <Alert severity={message.type} sx={{ mb: 2 }}>
                   {message.text}
@@ -202,7 +199,7 @@ function Settings() {
                   disabled={loading}
                   fullWidth
                 >
-                  {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                  {loading ? 'Đang xử lý...' : 'Cập nhật'}
                 </Button>
               </form>
             </Paper>

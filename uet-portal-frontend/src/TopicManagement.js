@@ -939,7 +939,7 @@ function TopicManagement() {
                               primary={file.originalName}
                               secondary={
                                 <>
-                                  Upload bởi: {file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên'} |
+                                  Tải lên bởi: {file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên'} |
                                   Ngày: {formatDate(file.uploadedAt)}
                                   {file.description && ` | ${file.description}`}
                                 </>
@@ -1004,7 +1004,7 @@ function TopicManagement() {
                       selectedProposal.outlineStatus !== 'approved' && (
                         <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                           <Typography variant="subtitle2" gutterBottom>
-                            Upload thêm file (GVHD):
+                            Tải lên tệp mới (GVHD):
                           </Typography>
                           <Button
                             variant="outlined"
@@ -1013,7 +1013,7 @@ function TopicManagement() {
                             size="small"
                             sx={{ mb: 1 }}
                           >
-                            Chọn file
+                            Chọn tệp
                             <input
                               type="file"
                               hidden
@@ -1082,7 +1082,7 @@ function TopicManagement() {
 
                 {selectedProposal.headComments && (
                   <Alert severity={selectedProposal.status === 'rejected_by_head' ? 'error' : 'info'} sx={{ mt: 2 }}>
-                    <strong>Nhận xét LĐBM:</strong> {selectedProposal.headComments}
+                    <strong>Nhận xét Lãnh đạo bộ môn:</strong> {selectedProposal.headComments}
                   </Alert>
                 )}
 
@@ -1188,7 +1188,7 @@ function TopicManagement() {
                     ))}
                   </List>
                 ) : (
-                  <Typography color="text.secondary">Chưa có file nào.</Typography>
+                  <Typography color="text.secondary">Chưa có tệp nào.</Typography>
                 )}
 
                 {/* GVHD chính có thể upload thêm file */}
@@ -1197,7 +1197,7 @@ function TopicManagement() {
                   selectedProposal.outlineStatus !== 'approved' && (
                     <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                       <Typography variant="subtitle2" gutterBottom>
-                        Upload thêm file (GVHD):
+                        Tải lên tệp mới (GVHD):
                       </Typography>
                       <Button
                         variant="outlined"

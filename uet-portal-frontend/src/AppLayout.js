@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Drawer, List, ListItem, ListItemText, Box, IconButton } from '@mui/material';
 import logo from './logo.png';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import HelpIcon from '@mui/icons-material/Help';
 import InfoIcon from '@mui/icons-material/Info';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import GroupIcon from '@mui/icons-material/Group';
-// import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SchoolIcon from '@mui/icons-material/School';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -23,9 +20,11 @@ const AppLayout = ({ children }) => {
     const drawerWidth = 280;
     const collapsedWidth = 60;
     const navigate = useNavigate();
+    const location = useLocation();
     const user = JSON.parse(localStorage.getItem('user')) || {};
     const [drawerOpen, setDrawerOpen] = useState(true);
-    // const buttonWidth = drawerWidth / 6;
+
+    const isActive = (path) => location.pathname === path;
 
     const handleLogout = () => {
         localStorage.removeItem('user');
@@ -33,15 +32,10 @@ const AppLayout = ({ children }) => {
         navigate('/');
     };
 
-    // Truyền prop cho dashboard-content
     const dashboardContentClass = 'dashboard-content';
-
-    // Clone children để thêm className nếu là dashboard-content
     const childrenWithClass = React.Children.map(children, child => {
         if (React.isValidElement(child) && child.props.className === 'dashboard-content') {
-            return React.cloneElement(child, {
-                className: dashboardContentClass
-            });
+            return React.cloneElement(child, { className: dashboardContentClass });
         }
         return child;
     });
@@ -59,31 +53,18 @@ const AppLayout = ({ children }) => {
                     transition: 'width 0.2s',
                 }}
             >
-                <Box
-                    sx={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        pointerEvents: 'auto',
-                    }}
-                >
+                <Box sx={{ display: 'flex', justifyContent: 'center', pointerEvents: 'auto' }}>
                     <Tooltip title={drawerOpen ? "Thu gọn" : "Mở rộng"} placement="right">
                         <IconButton
                             onClick={() => setDrawerOpen(!drawerOpen)}
                             size="small"
                             sx={{
-                                // width: (drawerOpen ? drawerWidth : collapsedWidth) / 6,
                                 width: drawerOpen ? drawerWidth : collapsedWidth,
                                 height: 36,
-                                // bgcolor: 'white',
-                                // border: '1px solid #e0e0e0',
-                                // boxShadow: 1,
-                                // transition: 'width 0.2s',
                                 borderRadius: 1,
                                 bgcolor: '#2e7d32',
                                 color: 'white',
-                                '&:hover': {
-                                    bgcolor: 'rgba(255, 255, 255, 0.1)',
-                                },
+                                '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',
@@ -117,7 +98,7 @@ const AppLayout = ({ children }) => {
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
-                        height: 120, // Chiều cao cố định cho phần logo
+                        height: 120,
                         minHeight: 120,
                         p: 2,
                         boxSizing: 'border-box'
@@ -142,47 +123,35 @@ const AppLayout = ({ children }) => {
                     sx={{
                         p: 0,
                         '& .MuiListItem-root': {
-                            minHeight: 40, // Chiều cao cố định cho mỗi ListItem
+                            minHeight: 40,
                             transition: 'min-height 0.2s',
                             color: 'white',
-                            '&:hover': {
-                                bgcolor: 'rgba(255, 255, 255, 0.1)',
-                            }
+                            '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
                         },
-                        '& .MuiListItemText-primary': {
-                            color: 'white',
-                        },
-                        '& .MuiSvgIcon-root': {
-                            color: 'white',
-                        }
+                        '& .MuiListItemText-primary': { color: 'white' },
+                        '& .MuiSvgIcon-root': { color: 'white' }
                     }}>
-                    <ListItem button onClick={() => navigate('/dashboard')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                    <ListItem button onClick={() => navigate('/dashboard')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/dashboard') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <DashboardIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Trang chủ" />}
                     </ListItem>
-                    <ListItem button onClick={() => navigate('/profile')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                    <ListItem button onClick={() => navigate('/profile')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/profile') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <AccountCircleIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Tài khoản" />}
                     </ListItem>
                     {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
-                        <ListItem button onClick={() => navigate('/batches')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                        <ListItem button onClick={() => navigate('/batches')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/batches') || location.pathname.startsWith('/batches/') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                             <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                            {drawerOpen && <ListItemText primary="Quản lý học viên" />}
+                            {drawerOpen && <ListItemText primary="Thông tin học viên" />}
                         </ListItem>
                     )}
                     {user.role === 'Quản trị viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                {/* <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Quản lý giảng viên" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/topic-proposals')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề tài chưa được phê duyệt" />} */}
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý giảng viên" />}
                             </ListItem>
-                            <ListItem button onClick={() => navigate('/admin/department-major-mapping')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/admin/department-major-mapping')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/admin/department-major-mapping') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <MapIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Ánh xạ Bộ môn - Ngành" />}
                             </ListItem>
@@ -190,13 +159,11 @@ const AppLayout = ({ children }) => {
                     )}
                     {user.role === 'Sinh viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
                             </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                {/* <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />} */}
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
                             </ListItem>
@@ -204,17 +171,11 @@ const AppLayout = ({ children }) => {
                     )}
                     {user.role === 'Giảng viên' && (
                         <>
-                            <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topics') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề xuất từ học viên" />}
+                                {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
                             </ListItem>
-                            <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Lưu trữ đề cương" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                {/* <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Thông tin giảng viên" />} */}
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
                             </ListItem>
@@ -222,25 +183,15 @@ const AppLayout = ({ children }) => {
                     )}
                     {(user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
                         <>
-                            {/* Menu Giảng viên - vì LĐBM cũng là giảng viên */}
-                            <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề xuất từ học viên" />}
+                                {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
                             </ListItem>
-                            {/* Menu Lãnh đạo bộ môn */}
-                            <ListItem button onClick={() => navigate('/head/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề tài chờ phê duyệt (LĐBM)" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/topic-archive')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Lưu trữ đề cương" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/head/statistics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/head/statistics')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/head/statistics') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thống kê học viên" />}
                             </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
                             </ListItem>
@@ -248,31 +199,25 @@ const AppLayout = ({ children }) => {
                     )}
                     {user.role === 'Lãnh đạo khoa' && (
                         <>
-                            {/* Menu Giảng viên - vì Lãnh đạo khoa cũng là giảng viên */}
-                            <ListItem button onClick={() => navigate('/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/topic-management')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/topic-management') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Đề xuất từ học viên" />}
+                                {drawerOpen && <ListItemText primary="Quản lý đề tài" />}
                             </ListItem>
-                            {/* Menu Lãnh đạo khoa */}
-                            <ListItem button onClick={() => navigate('/faculty-leader/topics')} sx={{ cursor: 'pointer', py: 0.5 }}>
-                                <AssignmentIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                                {drawerOpen && <ListItemText primary="Quản lý đề cương (LĐK)" />}
-                            </ListItem>
-                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                            <ListItem button onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                                 <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                                 {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
                             </ListItem>
                         </>
                     )}
-                    <ListItem button onClick={() => navigate('/notifications')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                    <ListItem button onClick={() => navigate('/notifications')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/notifications') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <InfoIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Thông báo" />}
                     </ListItem>
-                    <ListItem button onClick={() => navigate('/calendar')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                    <ListItem button onClick={() => navigate('/calendar')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/calendar') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <CalendarMonthIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Lịch" />}
                     </ListItem>
-                    <ListItem button onClick={() => navigate('/settings')} sx={{ cursor: 'pointer', py: 0.5 }}>
+                    <ListItem button onClick={() => navigate('/settings')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/settings') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                         <SettingsIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Cài đặt" />}
                     </ListItem>

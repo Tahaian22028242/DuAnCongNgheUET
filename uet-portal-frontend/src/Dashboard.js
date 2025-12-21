@@ -4,9 +4,15 @@ import { Typography, Paper, Box } from '@mui/material';
 import './Dashboard.css';
 
 function Dashboard() {
-  const user = JSON.parse(localStorage.getItem('user')) || {};
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || {});
   const [latestNotification, setLatestNotification] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Update user state when localStorage changes (after login)
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user')) || {};
+    setUser(storedUser);
+  }, []);
 
   useEffect(() => {
     // fetch notifications (student endpoint returns an array)
@@ -34,7 +40,7 @@ function Dashboard() {
       <div className="dashboard-content">
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h4" gutterBottom>
-            Xin chào {user.userInfo?.fullName || user.studentInfo?.fullName || user.fullName || user.username || 'Khách'}
+            Xin chào {user.userInfo?.fullName || user.studentInfo?.fullName || user.fullName || user.username || 'Người dùng'}!
           </Typography>
           <Typography variant="subtitle1">
             Vai trò: <strong>{user.role || 'Không xác định'}</strong>

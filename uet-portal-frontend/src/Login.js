@@ -21,8 +21,8 @@ function Login({ setIsAuthenticated }) {
       });
       const data = await response.json();
       if (response.ok) {
-        const user = { username: data.user.username, role: data.user.role };
-        localStorage.setItem('user', JSON.stringify(user));
+        // Store complete user data from server
+        localStorage.setItem('user', JSON.stringify(data.user));
         setIsAuthenticated(true);
         navigate('/dashboard');
       } else {

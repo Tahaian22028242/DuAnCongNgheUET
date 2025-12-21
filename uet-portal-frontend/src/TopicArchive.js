@@ -175,7 +175,7 @@ function TopicArchive() {
         }
       );
 
-      setMessage({ type: 'success', text: 'Upload file đề cương thành công!' });
+      setMessage({ type: 'success', text: 'Tải lên tệp đề cương thành công!' });
       setUploadDialogOpen(false);
       fetchProposals(); // Refresh data
     } catch (err) {
@@ -311,7 +311,7 @@ function TopicArchive() {
         }
       );
 
-      setMessage({ type: 'success', text: 'Upload file thành công!' });
+      setMessage({ type: 'success', text: 'Tải lên tệp thành công!' });
       setSelectedFiles([]);
       setFileDescription('');
       fetchProposals(); // Refresh data
@@ -541,9 +541,9 @@ function TopicArchive() {
           </DialogActions>
         </Dialog>
 
-        {/* Dialog Upload file đề cương (Học viên) */}
+        {/* Dialog Tải lên tệp đề cương (Học viên) */}
         <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Upload file đề cương</DialogTitle>
+          <DialogTitle>Tải lên tệp đề cương</DialogTitle>
           <DialogContent>
             <Alert severity="info" sx={{ mb: 2 }}>
               Chỉ chấp nhận file .pdf hoặc .docx. Kích thước tối đa 10MB/file.

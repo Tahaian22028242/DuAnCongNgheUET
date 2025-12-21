@@ -16,7 +16,6 @@ import HeadStatistics from './HeadStatistics';
 import Settings from './Settings';
 import UploadLecturers from './UploadLecturers';
 import FacultiesInfo from './FacultiesInfo';
-// import FacultyLecturers from './FacultyLecturers';
 import FacultyLecturers from './FacultyLecturers';
 import Calendar from './Calendar'; // Import the new Calendar component
 import Notifications from './Notifications'; // Import the Notifications component

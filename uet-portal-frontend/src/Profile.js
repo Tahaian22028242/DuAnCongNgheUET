@@ -1,23 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Typography, Box, Paper, CircularProgress, Alert,
-  Drawer, List, ListItem, ListItemText, Card, CardContent
+  Typography, Box, CircularProgress, Alert,
+  Card, CardContent
 } from '@mui/material';
 import axios from 'axios';
 import './Dashboard.css';
-import logo from './logo.png';
-import HelpIcon from '@mui/icons-material/Help';
-import InfoIcon from '@mui/icons-material/Info';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import GroupIcon from '@mui/icons-material/Group';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import SettingsIcon from '@mui/icons-material/Settings';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AppLayout from './AppLayout';
 
 
@@ -80,21 +68,18 @@ function Profile() {
         </Typography>
         <Card sx={{ maxWidth: 700, mt: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom color="primary">
-              Thông tin người dùng
-            </Typography>
             <Box sx={{ mt: 2 }}>
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                <strong>Người dùng:</strong> {fullName}
+              </Typography>
               <Typography variant="body1" sx={{ mb: 1 }}>
                 <strong>Tên đăng nhập:</strong> {usernameDisplay}
               </Typography>
               {user.role === 'Sinh viên' && (
-              <Typography variant="body1" sx={{ mb: 1 }}>
-                <strong>Mã học viên:</strong> {studentId}
-              </Typography>
+                <Typography variant="body1" sx={{ mb: 1 }}>
+                  <strong>Mã học viên:</strong> {studentId}
+                </Typography>
               )}
-              <Typography variant="body1" sx={{ mb: 1 }}>
-                <strong>Họ và tên:</strong> {fullName}
-              </Typography>
               <Typography variant="body1" sx={{ mb: 1 }}>
                 <strong>Vai trò:</strong> {role}
               </Typography>
