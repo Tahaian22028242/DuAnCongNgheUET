@@ -87,12 +87,6 @@ function Upload() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    navigate('/');
-  };
-
   const handleFileChange = (e) => {
     setExcelFile(e.target.files[0]);
   };

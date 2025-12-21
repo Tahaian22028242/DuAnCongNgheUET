@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import AppLayout from './AppLayout';
 import {
   Box, Paper, Typography, CircularProgress, Alert, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, List, ListItem, ListItemText, ListItemSecondaryAction,
+  TableHead, TableRow, List, ListItem, ListItemText, 
   IconButton, Tooltip, Chip, Grid, Snackbar
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -631,7 +631,7 @@ function FacultyLeaderTopics() {
                               {selected.outlineFiles.map((file, idx) => (
                                 <ListItem key={idx}>
                                   <ListItemText primary={file.originalName || file.filename} secondary={`Upload bởi: ${file.uploadedBy === 'student' ? 'Học viên' : 'Giảng viên'}`} />
-                                  <ListItemSecondaryAction>
+                                  <secondaryAction>
                                     <Tooltip title="Xem">
                                       <IconButton edge="end" onClick={() => handleViewFile(selected._id, file)} sx={{ mr: 1 }}>
                                         <VisibilityIcon />
@@ -660,7 +660,7 @@ function FacultyLeaderTopics() {
                                         </IconButton>
                                       </Tooltip>
                                     )}
-                                  </ListItemSecondaryAction>
+                                  </secondaryAction>
                                 </ListItem>
                               ))}
                             </List>

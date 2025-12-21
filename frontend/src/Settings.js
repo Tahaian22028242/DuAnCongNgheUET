@@ -107,12 +107,6 @@ function Settings() {
     setMessage({ type: 'info', text: 'Không có thay đổi để lưu.' });
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    navigate('/');
-  };
-
   return (
     <AppLayout>
       <div className="dashboard">

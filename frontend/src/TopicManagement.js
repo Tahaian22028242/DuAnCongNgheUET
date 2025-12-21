@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Box, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, CircularProgress, Alert, Chip, Dialog, DialogTitle,
   DialogContent, DialogActions, Button, IconButton, TextField, List, ListItem,
-  ListItemText, ListItemSecondaryAction, Tooltip, Fab, Autocomplete, Grid
-} from '@mui/material';
+  ListItemText, Tooltip, Autocomplete} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -26,7 +24,7 @@ function TopicManagement() {
   // State for proposals list
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
 
   // State for proposal form (create/edit)
@@ -72,18 +70,10 @@ function TopicManagement() {
   const [lecturers, setLecturers] = useState([]);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const navigate = useNavigate();
   const MAX_FILE_SIZE_IN_MB = 50;
   const MAX_FILE_SIZE = MAX_FILE_SIZE_IN_MB * 1024 * 1024;
 
-  useEffect(() => {
-    fetchProposals();
-    if (['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role)) {
-      fetchLecturers();
-    }
-  }, []);
-
-  const fetchProposals = async () => {
+  const fetchProposals = useCallback(async () => {
     setLoading(true);
     try {
       let endpoint = '';
@@ -115,7 +105,25 @@ function TopicManagement() {
       }
       setLoading(false);
     }
-  };
+  }, [user.role]);
+
+  const fetchLecturers = useCallback(async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/supervisors', {
+        withCredentials: true,
+      });
+      setLecturers(response.data);
+    } catch (err) {
+      console.error('Error fetching lecturers:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProposals();
+    if (['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role)) {
+      fetchLecturers();
+    }
+  }, [fetchProposals, fetchLecturers, user.role]);
 
   const fetchSupervisors = async () => {
     setSupervisorsLoading(true);
@@ -129,17 +137,6 @@ function TopicManagement() {
       console.error('Error fetching supervisors:', err);
       setMessage({ type: 'error', text: 'Không thể tải danh sách giảng viên.' });
       setSupervisorsLoading(false);
-    }
-  };
-
-  const fetchLecturers = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/supervisors', {
-        withCredentials: true,
-      });
-      setLecturers(response.data);
-    } catch (err) {
-      console.error('Error fetching lecturers:', err);
     }
   };
 
@@ -323,10 +320,9 @@ function TopicManagement() {
         formDataToSend.append('outlineFiles', file);
       });
 
-      let response;
       if (editingProposal) {
         // Update existing proposal
-        response = await axios.put(
+        await axios.put(
           `http://localhost:5000/student/resubmit-topic/${editingProposal._id}`,
           formDataToSend,
           { withCredentials: true }
@@ -334,7 +330,7 @@ function TopicManagement() {
         setMessage({ type: 'success', text: 'Cập nhật và gửi lại đề xuất thành công!' });
       } else {
         // Create new proposal
-        response = await axios.post(
+        await axios.post(
           'http://localhost:5000/student/propose-topic',
           formDataToSend,
           { withCredentials: true }
@@ -361,10 +357,6 @@ function TopicManagement() {
     setDetailDialogOpen(true);
   };
 
-  const handleViewOutline = (proposal) => {
-    setSelectedProposal(proposal);
-    setOutlineDialogOpen(true);
-  };
 
   const handleDownloadFile = async (proposalId, filename, originalName) => {
     try {
@@ -945,7 +937,7 @@ function TopicManagement() {
                                 </>
                               }
                             />
-                            <ListItemSecondaryAction>
+                            <secondaryAction>
                               <Tooltip title="Xem trước">
                                 <IconButton
                                   edge="end"
@@ -990,7 +982,7 @@ function TopicManagement() {
                                   </IconButton>
                                 </Tooltip>
                               )}
-                            </ListItemSecondaryAction>
+                            </secondaryAction>
                           </ListItem>
                         ))}
                       </List>
@@ -1138,7 +1130,7 @@ function TopicManagement() {
                             </>
                           }
                         />
-                        <ListItemSecondaryAction>
+                        <secondaryAction>
                           <Tooltip title="Xem trước">
                             <IconButton
                               edge="end"
@@ -1183,7 +1175,7 @@ function TopicManagement() {
                               </IconButton>
                             </Tooltip>
                           )}
-                        </ListItemSecondaryAction>
+                        </secondaryAction>
                       </ListItem>
                     ))}
                   </List>

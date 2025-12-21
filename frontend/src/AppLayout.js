@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Drawer, List, ListItem, ListItemButton, ListItemText, Box, IconButton } from '@mui/material';
+import { Drawer, List, ListItemButton, ListItemText, Box, IconButton } from '@mui/material';
 import logo from './logo.png';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -139,16 +139,24 @@ const AppLayout = ({ children }) => {
                         <AccountCircleIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                         {drawerOpen && <ListItemText primary="Tài khoản" />}
                     </ListItemButton>
-                    {(user.role === 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
+                    {(user.role === 'Quản trị viên') && (
+                        <ListItemButton onClick={() => navigate('/batches')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/batches') || location.pathname.startsWith('/batches/') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                            <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                            {drawerOpen && <ListItemText primary="Quản lý học viên" />}
+                        </ListItemButton>
+                    )}
+                    {(user.role !== 'Quản trị viên' || user.role === 'Giảng viên' || user.role === 'Lãnh đạo bộ môn' || user.role === 'Chủ nhiệm bộ môn') && (
                         <ListItemButton onClick={() => navigate('/batches')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/batches') || location.pathname.startsWith('/batches/') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
                             <GroupIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
                             {drawerOpen && <ListItemText primary="Thông tin học viên" />}
                         </ListItemButton>
                     )}
-                    <ListItemButton onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
-                        <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
-                        {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
-                    </ListItemButton>
+                    {user.role !== 'Quản trị viên' && (
+                        <ListItemButton onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>
+                            <SchoolIcon sx={{ mr: drawerOpen ? 1 : 0, justifyContent: 'center' }} />
+                            {drawerOpen && <ListItemText primary="Thông tin giảng viên" />}
+                        </ListItemButton>
+                    )}
                     {user.role === 'Quản trị viên' && (
                         <>
                             <ListItemButton onClick={() => navigate('/faculties-info')} sx={{ cursor: 'pointer', py: 0.5, bgcolor: isActive('/faculties-info') ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}>

@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import {
   Typography, Box, Paper, TextField, Button, Alert,
-  Drawer, List, ListItem, ListItemText, Autocomplete,
-  Grid, CircularProgress, Chip, IconButton
-} from '@mui/material';
+  Autocomplete,
+  CircularProgress, Chip} from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
@@ -12,18 +10,6 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 import './Dashboard.css';
-import logo from './logo.png';
-import HelpIcon from '@mui/icons-material/Help';
-import InfoIcon from '@mui/icons-material/Info';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import GroupIcon from '@mui/icons-material/Group';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import SettingsIcon from '@mui/icons-material/Settings';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AppLayout from './AppLayout';
 
 function ProposeTopic() {
@@ -39,8 +25,7 @@ function ProposeTopic() {
   const [supervisorsLoading, setSupervisorsLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const navigate = useNavigate();
+  // no navigation needed in this component
 
   const MAX_FILE_SIZE_IN_MB = 50;
   const MAX_FILE_SIZE = MAX_FILE_SIZE_IN_MB * 1024 * 1024; // 20MB
@@ -134,17 +119,10 @@ function ProposeTopic() {
       formDataToSend.append('secondarySupervisor', formData.secondarySupervisor?.username || '');
 
       // Thêm các file đính kèm
-      formData.attachments.forEach((file, index) => {
+      formData.attachments.forEach((file) => {
         formDataToSend.append('outlineFiles', file);
       });
 
-      const response = await axios.post(
-        'http://localhost:5000/student/propose-topic',
-        formDataToSend,
-        {
-          withCredentials: true,
-        }
-      );
 
       setMessage({ type: 'success', text: 'Đề xuất đề tài thành công! Vui lòng chờ giảng viên phê duyệt.' });
 
@@ -183,11 +161,6 @@ function ProposeTopic() {
     setLoading(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    navigate('/');
-  };
 
   return (
     <AppLayout>

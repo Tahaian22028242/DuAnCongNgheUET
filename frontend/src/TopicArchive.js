@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Typography, Box, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, CircularProgress, Alert, Chip, Dialog, DialogTitle,
   DialogContent, DialogActions, Button, IconButton, TextField, List, ListItem,
-  ListItemText, ListItemSecondaryAction, Tooltip
+  ListItemText, Tooltip
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -12,7 +11,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import EditIcon from '@mui/icons-material/Edit';
 import axios from 'axios';
 import { format } from 'date-fns';
 import AppLayout from './AppLayout';
@@ -33,13 +31,8 @@ function TopicArchive() {
   const [reviewComments, setReviewComments] = useState('');
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchProposals();
-  }, []);
-
-  const fetchProposals = async () => {
+  const fetchProposals = useCallback(async () => {
     try {
       let endpoint = '';
       if (user.role === 'Sinh viên') {
@@ -71,7 +64,11 @@ function TopicArchive() {
       }
       setLoading(false);
     }
-  };
+  }, [user.role]);
+
+  useEffect(() => {
+    fetchProposals();
+  }, [fetchProposals]);
 
   const formatDate = (dateString) => {
     try {
@@ -639,7 +636,7 @@ function TopicArchive() {
                             </>
                           }
                         />
-                        <ListItemSecondaryAction>
+                        <secondaryAction>
                           <Tooltip title="Tải xuống">
                             <IconButton
                               edge="end"
@@ -674,7 +671,7 @@ function TopicArchive() {
                               </IconButton>
                             </Tooltip>
                           )}
-                        </ListItemSecondaryAction>
+                        </secondaryAction>
                       </ListItem>
                     ))}
                   </List>

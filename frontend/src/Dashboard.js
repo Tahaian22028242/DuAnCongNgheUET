@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppLayout from './AppLayout';
 import { Typography, Paper, Box } from '@mui/material';
 import './Dashboard.css';

@@ -1,5 +1,5 @@
 {
-  "name": "uet-portal-backend",
+  "name": "backend",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
@@ -21,7 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.14.2",
     "multer": "^1.4.5-lts.2",
-    "uet-portal-backend": "file:"
+    "backend": "file:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.9",

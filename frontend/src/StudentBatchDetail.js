@@ -147,12 +147,6 @@ function StudentBatchDetail() {
 
     const currentStudents = filteredStudents.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
-    const handleLogout = () => {
-        localStorage.removeItem('user');
-        document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        navigate('/');
-    };
-
     // Thêm học viên
     const handleAddStudent = async () => {
         try {

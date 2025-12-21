@@ -39,12 +39,6 @@ function UploadHeads() {
     setLoading(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    navigate('/');
-  };
-
   return (
     <AppLayout>
       <div className="dashboard">

@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box, Paper, Typography, Button, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, Alert, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, List, ListItem, ListItemText, ListItemSecondaryAction,
-  IconButton, Tooltip, Chip, Autocomplete, Grid, CircularProgress, Snackbar
+  TableHead, TableRow, 
+  IconButton, Tooltip, Chip, Grid, CircularProgress, Snackbar
 } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AppLayout from './AppLayout';
 import axios from 'axios';
@@ -45,7 +43,6 @@ function HeadTopics() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewName, setPreviewName] = useState('');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchProposals();
@@ -196,11 +193,6 @@ function HeadTopics() {
     setSubmitting(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    navigate('/');
-  };
 
   const formatDate = (dateString) => {
     try {
@@ -236,19 +228,7 @@ function HeadTopics() {
     }
   };
 
-  const handleClosePreview = () => {
-    setPreviewOpen(false);
-    if (previewUrl) {
-      window.URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    setPreviewName('');
-  };
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    setSelectedFiles(files);
-  };
 
   const handleDownloadFile = async (proposalId, filename, originalName) => {
     try {
