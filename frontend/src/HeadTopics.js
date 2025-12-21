@@ -42,6 +42,8 @@ function HeadTopics() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewName, setPreviewName] = useState('');
+  const [previewContentType, setPreviewContentType] = useState('');
+  const [previewText, setPreviewText] = useState(null);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
@@ -206,25 +208,39 @@ function HeadTopics() {
 
   const handleViewFile = async (proposalId, file) => {
     const name = file.originalName || file.originalname || file.filename;
-    const lower = (name || '').toLowerCase();
-    if (lower.endsWith('.pdf')) {
-      try {
-        const res = await axios.get(
-          `http://localhost:5000/download-outline/${proposalId}/${file.filename}`,
-          { responseType: 'blob', withCredentials: true }
-        );
-        const blob = new Blob([res.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        setPreviewUrl(url);
-        setPreviewName(name);
-        setPreviewOpen(true);
-      } catch (err) {
-        console.error('Error fetching file for preview:', err);
-        setMessage({ type: 'error', text: 'Không thể xem file' });
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/download-outline/${proposalId}/${file.filename}`,
+        { responseType: 'blob', withCredentials: true }
+      );
+      const blob = res.data; // axios returns a Blob when responseType='blob'
+      const mime = blob.type || '';
+      const url = window.URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      setPreviewName(name);
+      setPreviewContentType('');
+      setPreviewText(null);
+
+      if (mime.startsWith('image/')) {
+        setPreviewContentType('image');
+      } else if (mime === 'application/pdf') {
+        setPreviewContentType('pdf');
+      } else if (mime.startsWith('text/')) {
+        setPreviewContentType('text');
+        try {
+          const text = await blob.text();
+          setPreviewText(text);
+        } catch (e) {
+          setPreviewText(null);
+        }
+      } else {
+        // unknown/unsupported by browser preview — still provide download
+        setPreviewContentType('unknown');
       }
-    } else {
-      // non-PDF: open download in new tab or prompt user to download
-      setMessage({ type: 'info', text: 'Chức năng xem trước chỉ hỗ trợ file PDF. Vui lòng tải file về để xem.' });
+      setPreviewOpen(true);
+    } catch (err) {
+      console.error('Error fetching file for preview:', err);
+      setMessage({ type: 'error', text: 'Không thể xem file' });
     }
   };
 
@@ -643,8 +659,8 @@ function HeadTopics() {
                           <Typography variant="subtitle2" gutterBottom>
                             <strong>Danh sách tài liệu đính kèm:</strong>
                             <br />
-                            <em style={{ color: 'gray' }}> {selectedProposal.outlineFiles.length} tài liệu</em>
-                            {selectedProposal.outlineFiles && selectedProposal.outlineFiles.length > 0 ? (
+                            <em style={{ color: 'gray' }}> {(selectedProposal.outlineFiles?.length) || 0} tài liệu</em>
+                            {selectedProposal.outlineFiles?.length > 0 ? (
                               <Box sx={{ mt: 1 }}>
                                 {selectedProposal.outlineFiles.map((file, index) => (
                                   <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, width: '100%' }}>
@@ -671,15 +687,6 @@ function HeadTopics() {
                                           <DownloadIcon fontSize="small" />
                                         </IconButton>
                                       </Tooltip>
-
-                                      {/* Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa xóa file */}
-                                      {/* {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === selectedProposal.primarySupervisor && selectedProposal.outlineStatus !== 'approved' && (
-                                      <Tooltip title="Xóa">
-                                        <IconButton size="small" color="error" onClick={() => handleDeleteFile(selectedProposal._id, file.filename)} sx={{ p: 0.4, width: 32, height: 32 }}>
-                                          <DeleteIcon fontSize="small" />
-                                        </IconButton>
-                                      </Tooltip>
-                                    )} */}
                                     </Box>
                                   </Box>
                                 ))}
@@ -689,7 +696,7 @@ function HeadTopics() {
                             )}
                           </Typography>
 
-                          {selectedProposal.supervisorComments.length > 0 && (
+                          {selectedProposal.supervisorComments?.length > 0 && (
                             <>
                               <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
                                 <strong>Nhận xét của GVHD:</strong>
@@ -707,7 +714,7 @@ function HeadTopics() {
                             </>
                           )}
                           {/* Show head's saved comments under GVHD comments */}
-                          {selectedProposal.headComments.length > 0 && (
+                          {selectedProposal.headComments?.length > 0 && (
                             <>
                               <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
                                 <strong>Nhận xét của {user.role}:</strong>
@@ -825,16 +832,6 @@ function HeadTopics() {
                                     <Alert severity="info" sx={{ mb: 1 }}>
                                       Bạn là GVHD chính - có quyền chỉnh sửa
                                     </Alert>
-                                    {/* Chức năng chỉnh sửa đánh giá tạm ẩn - có thể bật lại sau
-                                    <Button
-                                      variant="outlined"
-                                      startIcon={<EditIcon />}
-                                      onClick={() => handleReview(selectedProposal, selectedProposal.status)}
-                                      fullWidth
-                                    >
-                                      Chỉnh sửa đánh giá
-                                    </Button>
-                                    */}
                                   </Box>
                                 )}
                               </>
@@ -848,20 +845,6 @@ function HeadTopics() {
                           {/* Upload area for primary supervisor - Cho phép Giảng viên, Lãnh đạo bộ môn, Lãnh đạo khoa */}
                           {['Giảng viên', 'Lãnh đạo bộ môn', 'Lãnh đạo khoa'].includes(user.role) && user.username === selectedProposal.primarySupervisor && selectedProposal.outlineStatus !== 'approved' && (
                             <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                              {/* <Typography variant="subtitle2" sx={{ mb: 1 }}>Upload thêm file (GVHD):</Typography>
-                            <input
-                              accept=".pdf,.doc,.docx,.txt,.zip,.rar"
-                              style={{ display: 'none' }}
-                              id={`supervisor-upload-${selectedProposal._id}`}
-                              multiple
-                              type="file"
-                              onChange={handleFileSelect}
-                            />
-                            {/* <label htmlFor={`supervisor-upload-${selectedProposal._id}`}>
-                              <Button variant="outlined" component="span" startIcon={<UploadFileIcon />} size="small" sx={{ mb: 1 }}>
-                                Chọn file
-                              </Button>
-                            </label> */}
                               {selectedFiles.length > 0 && (
                                 <Box sx={{ mb: 1 }}>
                                   {selectedFiles.map((f, i) => (
@@ -878,14 +861,6 @@ function HeadTopics() {
                                 sx={{ mb: 1 }}
                               />
                               <Box sx={{ display: 'flex', gap: 1 }}>
-                                {/* <Button
-                                onClick={() => handleSupervisorUploadFiles(selectedProposal._id)}
-                                variant="contained"
-                                size="small"
-                                disabled={uploadingFiles || selectedFiles.length === 0}
-                              >
-                                {uploadingFiles ? 'Đang upload...' : 'Upload'}
-                              </Button> */}
                                 <Button
                                   onClick={() => { setSelectedFiles([]); setFileDescription(''); }}
                                   variant="outlined"
@@ -996,21 +971,51 @@ function HeadTopics() {
         </div>
       </AppLayout>
 
-      <Dialog open={previewOpen} onClose={() => { setPreviewOpen(false); if (previewUrl) { window.URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } setPreviewName(''); }} maxWidth="lg" fullWidth>
+      <Dialog open={previewOpen} onClose={() => {
+        // close and cleanup
+        setPreviewOpen(false);
+        if (previewUrl) { try { window.URL.revokeObjectURL(previewUrl); } catch (e) {} }
+        setPreviewUrl(null);
+        setPreviewName('');
+        setPreviewContentType('');
+        setPreviewText(null);
+      }} maxWidth="lg" fullWidth>
         <DialogTitle>{previewName}</DialogTitle>
         <DialogContent sx={{ height: '80vh' }}>
           {previewUrl ? (
-            <iframe title={previewName} src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} />
+            previewContentType === 'pdf' ? (
+              <iframe title={previewName} src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} />
+            ) : previewContentType === 'image' ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <img src={previewUrl} alt={previewName} style={{ maxWidth: '100%', maxHeight: '100%' }} />
+              </Box>
+            ) : previewContentType === 'text' ? (
+              <Paper sx={{ p: 2, height: '100%', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+                <Typography variant="body2">{previewText || 'Không thể đọc nội dung'}</Typography>
+              </Paper>
+            ) : (
+              <Box sx={{ p: 2 }}>
+                <Typography>Không hỗ trợ xem trước loại tệp này. Vui lòng tải xuống để mở.</Typography>
+              </Box>
+            )
           ) : (
             <Typography>Không có file để xem</Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setPreviewOpen(false); if (previewUrl) { window.URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } setPreviewName(''); }}>Đóng</Button>
+          <Button onClick={() => {
+            setPreviewOpen(false);
+            if (previewUrl) { try { window.URL.revokeObjectURL(previewUrl); } catch (e) {} }
+            setPreviewUrl(null);
+            setPreviewName('');
+            setPreviewContentType('');
+            setPreviewText(null);
+          }}>Đóng</Button>
           <Button
             component="a"
-            href={previewUrl}
+            href={previewUrl || '#'}
             download={previewName}
+            disabled={!previewUrl}
           >
             Tải
           </Button>
